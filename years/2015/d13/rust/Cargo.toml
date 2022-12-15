@@ -1,12 +1,11 @@
 [package]
-name = "wyz_aoc"
+name = "wyz_aoc_2015_d13"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bitvec = "1"
-funty = "2"
+wyz_aoc = "*"
+itertools = "0.10"
 nom = "7"
-tap = "1"

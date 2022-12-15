@@ -1,5 +1,5 @@
 [package]
-name = "wyz_aoc"
+name = "aoc_d03"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,6 +7,3 @@ edition = "2021"
 
 [dependencies]
 bitvec = "1"
-funty = "2"
-nom = "7"
-tap = "1"

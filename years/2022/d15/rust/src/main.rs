@@ -51,45 +51,27 @@ fn main() {
         .filter_map(|y| {
             sensors
                 .iter()
-                // Get the row coverage for this sensor, clamped to the search space
                 .flat_map(move |s| s.coverage_in_row(y, 0, MAX_RANK))
-                // Collect them all so they can be sorted by x position
                 .collect::<Vec<_>>()
                 .tap_mut(|v| v.sort_by_key(|r| *r.start()))
                 .into_iter()
-                // Unify as many as possible
                 .fold(Vec::<RangeInclusive<i32>>::new(), |mut acc, next| {
-                    // If the vector has a right-most range, get it
                     if let Some(last) = acc.last_mut() {
                         let (a1, a2) = (*last.start(), *last.end());
                         let (b1, b2) = (*next.start(), *next.end());
-                        // If the existing range overlaps the next range, unify them
                         if a2 >= b1 {
                             *last = a1.min(b1)..=a2.max(b2);
-                        }
-                        // Otherwise, they are disjoint, so push the incoming
-                        else {
-                            acc.push(next);
+                            return acc;
                         }
                     }
-                    // If the collection is empty, this is the first range in the series.
-                    else {
-                        acc.push(next)
-                    }
+                    acc.push(next);
                     acc
                 })
-                // Walk over each *pair* of coverage ranges
+                // .array_windows::<2>()
                 .windows(2)
-                // and get the range *in between* them.
-                .map(|windows| {
-                    let left = &windows[0];
-                    let right = &windows[1];
-                    // coverage is inclusive, so start after the left end and end before the right start.
-                    *left.end() + 1..*right.start()
-                })
-                // and collect each *uncovered* range.
+                .map(|w| unsafe { &*(w.as_ptr().cast::<[RangeInclusive<i32>; 2]>()) })
+                .map(|[left, right]| *left.end() + 1..*right.start())
                 .collect::<Vec<_>>()
-                // discard rows that have no exclusions
                 .pipe(|v| if v.is_empty() { None } else { Some((y, v)) })
         })
         .for_each(|(y, exclusions)| {

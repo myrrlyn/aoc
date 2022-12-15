@@ -7,7 +7,7 @@ use nom::{
 };
 use rayon::prelude::*;
 use std::{ops::RangeInclusive, str::FromStr};
-use tap::Tap;
+use tap::{Pipe, Tap};
 use wyz_aoc::{Coord2D, Grid2D};
 
 static INPUT: &str = wyz_aoc::input!();
@@ -44,83 +44,60 @@ fn main() {
         .values()
         .filter(|f| matches!(**f, Fill::Covered))
         .count();
-    println!("part 1: {pt1}"); // (1835569, 3983183)
+    println!("part 1: {pt1}");
 
-    for (x, y, tune) in (0..=MAX_RANK)
+    (0..=MAX_RANK)
         .into_par_iter()
-        .inspect(|y| {
-            y.tap_dbg(|&&y| {
-                let mil = y / 1_000_000;
-                let thou = (y % 1_000_000) / 1_000;
-                let base = y % 1_000;
-                println!("searching {mil},{thou:0>3},{base:0>3}");
-            });
-        })
-        .map(|y| {
-            (
-                y,
-                sensors
-                    .iter()
-                    // Get the row coverage for this sensor, clamped to the search space
-                    .flat_map(move |s| s.coverage_in_row(y, 0, MAX_RANK))
-                    // Collect them all so they can be sorted by x position
-                    .collect::<Vec<_>>()
-                    .tap_mut(|v| v.sort_by_key(|r| *r.start()))
-                    .into_iter()
-                    // Unify as many as possible
-                    .fold(Vec::<RangeInclusive<i32>>::new(), |mut acc, next| {
-                        // If the vector has a right-most range, get it
-                        if let Some(last) = acc.last_mut() {
-                            let (a1, a2) = (*last.start(), *last.end());
-                            let (b1, b2) = (*next.start(), *next.end());
-                            // If the existing range overlaps the next range, unify them
-                            if a2 >= b1 {
-                                *last = a1.min(b1)..=a2.max(b2);
-                            }
-                            // Otherwise, they are disjoint, so push the incoming
-                            else {
-                                acc.push(next);
-                            }
-                        }
-                        // If the collection is empty, this is the first range in the series.
-                        else {
-                            acc.push(next)
-                        }
-                        acc
-                    })
-                    // Walk over each *pair* of coverage ranges
-                    .windows(2)
-                    // and get the range *in between* them.
-                    .map(|windows| {
-                        let left = &windows[0];
-                        let right = &windows[1];
-                        // coverage is inclusive, so start after the left end and end before the right start.
-                        *left.end() + 1..*right.start()
-                    })
-                    // and collect each *uncovered* range.
-                    .collect::<Vec<_>>(),
-            )
-        })
-        // discard rows that have no exclusions
-        .filter(|(_, uncovered)| !uncovered.is_empty())
-        .inspect(|(row, v)| {
-            v.tap_dbg(|&v| {
-                for r in v {
-                    println!("{row}: {r:?}");
-                }
-            });
-        })
-        .collect::<Vec<_>>()
-        .into_iter()
-        .flat_map(|(y, exclusions)| {
-            exclusions
+        .filter_map(|y| {
+            sensors
+                .iter()
+                // Get the row coverage for this sensor, clamped to the search space
+                .flat_map(move |s| s.coverage_in_row(y, 0, MAX_RANK))
+                // Collect them all so they can be sorted by x position
+                .collect::<Vec<_>>()
+                .tap_mut(|v| v.sort_by_key(|r| *r.start()))
                 .into_iter()
-                .flatten()
-                .map(move |x| (x, y, ((x as i64) * (MAX_RANK as i64)) + y as i64))
+                // Unify as many as possible
+                .fold(Vec::<RangeInclusive<i32>>::new(), |mut acc, next| {
+                    // If the vector has a right-most range, get it
+                    if let Some(last) = acc.last_mut() {
+                        let (a1, a2) = (*last.start(), *last.end());
+                        let (b1, b2) = (*next.start(), *next.end());
+                        // If the existing range overlaps the next range, unify them
+                        if a2 >= b1 {
+                            *last = a1.min(b1)..=a2.max(b2);
+                        }
+                        // Otherwise, they are disjoint, so push the incoming
+                        else {
+                            acc.push(next);
+                        }
+                    }
+                    // If the collection is empty, this is the first range in the series.
+                    else {
+                        acc.push(next)
+                    }
+                    acc
+                })
+                // Walk over each *pair* of coverage ranges
+                .windows(2)
+                // and get the range *in between* them.
+                .map(|windows| {
+                    let left = &windows[0];
+                    let right = &windows[1];
+                    // coverage is inclusive, so start after the left end and end before the right start.
+                    *left.end() + 1..*right.start()
+                })
+                // and collect each *uncovered* range.
+                .collect::<Vec<_>>()
+                // discard rows that have no exclusions
+                .pipe(|v| if v.is_empty() { None } else { Some((y, v)) })
         })
-    {
-        println!("part 2: ({x}, {y}) is {tune}");
-    }
+        .for_each(|(y, exclusions)| {
+            for x in exclusions.into_iter().flatten() {
+                let tune = ((x as i64) * (MAX_RANK as i64)) + y as i64;
+                println!("part 2: ({x}, {y}) is {tune}");
+            }
+        });
 }
 
 fn coverage_and_sensors(

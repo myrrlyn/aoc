@@ -87,9 +87,7 @@ impl<'a> Relations<'a> {
                     .and_then(|r| r.get(left))
                     .copied()
                     .unwrap_or(0);
-                let score = left_score + right_score;
-                // println!("{left} <-> {right}: {score}");
-                score
+                left_score + right_score
             })
             .sum()
     }

@@ -4,7 +4,7 @@ use std::{
     str::FromStr,
 };
 
-use wyz_aoc::{Coord2D, Grid2D};
+use wyz_aoc::Grid2D;
 
 static INPUT: &str = wyz_aoc::input!();
 
@@ -132,11 +132,18 @@ impl Grid3D {
         let mut lava_faces = 0;
         let mut longest_queue = 0;
         while let Some(pt) = search_queue.pop_front() {
-            searched.insert(pt);
+            // Check the visit queue; each location can be enqueued for search
+            // by multiple prior locations, but should only be searched once.
+            if !searched.insert(pt) {
+                continue;
+            }
             for neighbor in pt.neighbors(1, 1) {
                 match self.lookup(&neighbor) {
                     Some(Fill::Lava) => lava_faces += 1,
                     Some(Fill::Air) => {
+                        // Don't enqueue locations that have already been
+                        // *searched*. Currently there's no good way to check if
+                        // the point has already been *enqueued for search*.
                         if !searched.contains(&neighbor) {
                             search_queue.push_back(neighbor)
                         }
@@ -146,7 +153,6 @@ impl Grid3D {
             }
             longest_queue = longest_queue.max(search_queue.len());
         }
-        println!("longest search queue: {longest_queue}");
         lava_faces
     }
 

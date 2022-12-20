@@ -8,7 +8,7 @@ use nom::{
 use rayon::prelude::*;
 use std::{ops::RangeInclusive, str::FromStr};
 use tap::{Pipe, Tap};
-use wyz_aoc::{Coord2D, Grid2D};
+use wyz_aoc::Coord2D;
 
 static INPUT: &str = wyz_aoc::input!();
 
@@ -24,26 +24,31 @@ fn main() {
         .flat_map(|(idx, line)| Sensor::parse_with_ident(idx, line).map(|(_, s)| s))
         .collect::<Vec<_>>();
     assert_eq!(sensors.len(), 29);
-    sensors.sort_by_key(|s| s.location.manhattan_distance(Coord2D::ZERO));
+    sensors.sort_by_key(|s| s.location.axial_distance(Coord2D::ZERO));
 
-    let mut grid = Grid2D::<i32, Fill>::default();
-    grid.seed(coverage_and_sensors(
-        sensors.iter().copied(),
-        Coord2D {
-            x: i32::MIN,
-            y: SOUGHT_ROW,
-        },
-        Coord2D {
-            x: i32::MAX,
-            y: SOUGHT_ROW,
-        },
-    ));
-    let pt1 = grid
-        .row(&SOUGHT_ROW)
-        .expect("this row should be present")
-        .values()
-        .filter(|f| matches!(**f, Fill::Covered))
-        .count();
+    // Get all the points that are covered by a sensor's scan radius
+    let covered = sensors
+        .iter()
+        .flat_map(|s| s.coverage_in_row(SOUGHT_ROW, i32::MIN, i32::MAX))
+        .pipe(wyz_aoc::unify_ranges_inclusive)
+        .into_iter()
+        .map(|r| (*r.end() - *r.start() + 1))
+        .sum::<i32>();
+    // Get all the points that contain a sensor or a beacon.
+    let objects = sensors
+        .iter()
+        .flat_map(
+            |&Sensor {
+                 location, nearest, ..
+             }| [location, nearest],
+        )
+        .collect::<Vec<_>>()
+        .tap_mut(|v| v.sort())
+        .tap_mut(|v| v.dedup())
+        .into_iter()
+        .filter(|&Coord2D { y, .. }| y == SOUGHT_ROW)
+        .count() as i32;
+    let pt1 = covered - objects;
     println!("part 1: {pt1}");
 
     (0..=MAX_RANK)
@@ -52,21 +57,7 @@ fn main() {
             sensors
                 .iter()
                 .flat_map(move |s| s.coverage_in_row(y, 0, MAX_RANK))
-                .collect::<Vec<_>>()
-                .tap_mut(|v| v.sort_by_key(|r| *r.start()))
-                .into_iter()
-                .fold(Vec::<RangeInclusive<i32>>::new(), |mut acc, next| {
-                    if let Some(last) = acc.last_mut() {
-                        let (a1, a2) = (*last.start(), *last.end());
-                        let (b1, b2) = (*next.start(), *next.end());
-                        if a2 >= b1 {
-                            *last = a1.min(b1)..=a2.max(b2);
-                            return acc;
-                        }
-                    }
-                    acc.push(next);
-                    acc
-                })
+                .pipe(wyz_aoc::unify_ranges_inclusive)
                 // .array_windows::<2>()
                 .windows(2)
                 .map(|w| unsafe { &*(w.as_ptr().cast::<[RangeInclusive<i32>; 2]>()) })
@@ -80,22 +71,6 @@ fn main() {
                 println!("part 2: ({x}, {y}) is {tune}");
             }
         });
-}
-
-fn coverage_and_sensors(
-    sensors: impl Iterator<Item = Sensor>,
-    small_corner: Coord2D<i32>,
-    large_corner: Coord2D<i32>,
-) -> impl Iterator<Item = (Coord2D<i32>, Fill)> {
-    sensors.flat_map(
-        move |s @ Sensor {
-                  location, nearest, ..
-              }| {
-            s.covered_points_in_region(small_corner, large_corner)
-                .map(|c| (c, Fill::Covered))
-                .chain([(location, Fill::Sensor), (nearest, Fill::Beacon)])
-        },
-    )
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -150,31 +125,8 @@ impl Sensor {
         Some(start..=end)
     }
 
-    fn covered_points_in_region(
-        &self,
-        small_corner: Coord2D<i32>,
-        large_corner: Coord2D<i32>,
-    ) -> impl Iterator<Item = Coord2D<i32>> {
-        let src = self.location;
-        let dst = self.nearest;
-
-        let radius = src.manhattan_distance(dst);
-        let y_min = src.y - radius;
-        let y_max = src.y + radius;
-        (y_min..=y_max)
-            .filter(move |y| (small_corner.y..=large_corner.y).contains(y))
-            .flat_map(move |y| {
-                let x_range = radius - (src.y.abs_diff(y) as i32);
-                let x_min = src.x - x_range;
-                let x_max = src.x + x_range;
-                (x_min..=x_max)
-                    .filter(move |x| (small_corner.x..=large_corner.x).contains(x))
-                    .map(move |x| Coord2D { x, y })
-            })
-    }
-
     fn search_radius(&self) -> i32 {
-        self.location.manhattan_distance(self.nearest)
+        self.location.axial_distance(self.nearest)
     }
 }
 
@@ -192,13 +144,4 @@ impl FromStr for Sensor {
                 }
             })
     }
-}
-
-#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
-enum Fill {
-    #[default]
-    Unknown,
-    Covered,
-    Sensor,
-    Beacon,
 }

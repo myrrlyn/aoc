@@ -44,6 +44,26 @@ impl<I: Signed> Cartesian2D<I> {
         (x2 - x1) + (y2 - y1)
     }
 
+    pub fn nearby(self, radius: I, max_axial_distance: I) -> Vec<Self>
+    where
+        RangeInclusive<I>: IntoIterator<Item = I>,
+    {
+        let mut out = Vec::new();
+        for x in radius.wrapping_neg()..=radius {
+            for y in radius.wrapping_neg()..=radius {
+                let dist = x.abs() + y.abs();
+                if dist == I::ZERO || dist > max_axial_distance {
+                    continue;
+                }
+                out.push(Self {
+                    x: self.x + x,
+                    y: self.y + y,
+                });
+            }
+        }
+        out
+    }
+
     pub fn make_3d(self, z: I) -> Cartesian3D<I> {
         Cartesian3D {
             x: self.x,

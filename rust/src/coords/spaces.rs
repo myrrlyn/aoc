@@ -50,8 +50,8 @@ impl<I: Signed, T> Cartesian2D<I, T> {
     }
 
     /// Inserts a value into the graph at a given point.
-    pub fn insert(&mut self, pt: Cartesian2DPoint<I>, value: T) {
-        self.get_or_insert_with(pt, || value);
+    pub fn insert(&mut self, point: Cartesian2DPoint<I>, value: T) {
+        self.get_or_insert_with(point, || value);
     }
 
     /// Views a value stored at a give point. If the point is not currently

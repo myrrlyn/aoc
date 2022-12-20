@@ -27,7 +27,7 @@ curl "https://adventofcode.com/${year}/day/${day}/input" \
 	-H 'Pragma: no-cache' \
 	-H 'Cache-Control: no-cache' \
 	-H 'TE: trailers' \
-	-H "Cookie: session=${SESSION_ID}"
+	-H "Cookie: session=${SESSION_ID}" \
 	--output "${file}"
 
 sleep 1

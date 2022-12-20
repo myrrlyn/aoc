@@ -1,3 +1,10 @@
+pub mod coords;
+
+pub use crate::coords::{
+    Cartesian2DPoint as Coord2D, Cartesian2DSpace as Grid2D, Cartesian3DPoint as Coord3D,
+    Cartesian3DSpace as Grid3D,
+};
+
 #[macro_export]
 macro_rules! input {
     () => {

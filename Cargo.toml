@@ -1,8 +1,6 @@
 [workspace]
-members = [
-    "rust",
-    "years/*/*/rust",
-]
+resolver = "2"
+members = ["rust", "years/*/*/rust"]
 
 [patch.crates-io.wyz_aoc]
 path = "rust"

@@ -1,6 +1,7 @@
 use std::ops::RangeInclusive;
 
 pub use funty::{Integral, Signed};
+use nom::{character::complete::digit1, combinator::map_res, IResult};
 use tap::Tap;
 
 pub mod coords;
@@ -59,4 +60,8 @@ pub fn unify_ranges_inclusive<I: Integral>(
             acc.push(next);
             acc
         })
+}
+
+pub fn parse_number<T: FromStr>(text: &str) -> IResult<&str, T> {
+    map_res(digit1, T::from_str)(text)
 }

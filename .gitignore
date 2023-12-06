@@ -3,3 +3,4 @@ vendor/
 Cargo.lock
 .env
 input.txt
+assets/inputs

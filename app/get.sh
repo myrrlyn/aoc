@@ -7,7 +7,7 @@ day=${2:-$(date +%d)}
 
 echo $year / $day
 
-file="years/${year}/d$(printf "%02d" ${day})/input.txt"
+file="assets/inputs/${year}/d$(printf "%02d" ${day}).txt"
 # echo $file
 
 # Get the identifier cookie. You must store it in .env at the project root, as

@@ -51,6 +51,14 @@ use nom::{
 use tap::Tap;
 
 pub mod coords;
+pub mod y2015;
+pub mod y2016;
+pub mod y2017;
+pub mod y2018;
+pub mod y2019;
+pub mod y2020;
+pub mod y2021;
+pub mod y2022;
 pub mod y2023;
 
 pub mod prelude {
@@ -122,7 +130,7 @@ pub fn solutions() -> &'static Registry {
 /// the execution harness to find and run it.
 pub trait Puzzle {
 	/// Prepares a solver to execute part 1.
-	fn prepare_1(&mut self) -> anyhow::Result<()> {
+	fn prepare_1(&mut self) -> color_eyre::Result<()> {
 		Ok(())
 	}
 
@@ -131,15 +139,15 @@ pub trait Puzzle {
 	/// This is permitted to modify `self`, but generally should not. Part 2
 	/// solvers may wish to skip Part 1 if the computation is expensive and not
 	/// relevant to Part 2's work.
-	fn part_1(&mut self) -> anyhow::Result<i64> {
-		anyhow::bail!("have not yet solved part 1");
+	fn part_1(&mut self) -> color_eyre::Result<i64> {
+		eyre::bail!("have not yet solved part 1");
 	}
 
 	/// Prepares a solver to execute part 2.
 	///
 	/// By default, this calls `self.prepare_1()`. Overriders should generally
 	/// assume that `self.part_1()` has *not* been called
-	fn prepare_2(&mut self) -> anyhow::Result<()> {
+	fn prepare_2(&mut self) -> color_eyre::Result<()> {
 		self.prepare_1()?;
 		Ok(())
 	}
@@ -150,8 +158,8 @@ pub trait Puzzle {
 	/// invoking Part 2! Implementors can *only* assume that `.prepare_2()` has
 	/// been called, and must tolerate the part-1 methods being either run *or*
 	/// not run.
-	fn part_2(&mut self) -> anyhow::Result<i64> {
-		anyhow::bail!("have not yet solved part 2");
+	fn part_2(&mut self) -> color_eyre::Result<i64> {
+		eyre::bail!("have not yet solved part 2");
 	}
 }
 
@@ -239,7 +247,7 @@ mod tests {
 	use super::*;
 
 	#[test]
-	fn written_numbers() -> anyhow::Result<()> {
+	fn written_numbers() -> color_eyre::Result<()> {
 		let text = "onethreefive";
 		let (rest, one) = written_number::<i8>(text)?;
 		let (rest, three) = written_number::<i8>(rest)?;

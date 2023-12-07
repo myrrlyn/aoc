@@ -53,7 +53,7 @@ pub struct Args {
 }
 
 impl Args {
-	fn execute_program(&self) -> color_eyre::Result<()> {
+	fn execute_program(&self) -> eyre::Result<()> {
 		let mut cwd = std::env::current_dir()?;
 		cwd.extend(&["assets", match self.data {
 			Data::Sample => "samples",
@@ -168,7 +168,7 @@ impl fmt::Display for TraceFormat {
 	}
 }
 
-fn main() -> color_eyre::Result<()> {
+fn main() -> eyre::Result<()> {
 	color_eyre::install()?;
 
 	// Get the CLI args

@@ -18,14 +18,10 @@ use tap::{
 
 use crate::{
 	parse_number,
-	ParseResult,
-	Parseable,
-	Parsed,
-	Puzzle,
-	Solver,
+	prelude::*,
 };
 
-#[linkme::distributed_slice(crate::SOLVERS)]
+#[linkme::distributed_slice(SOLVERS)]
 static ITEM: Solver = Solver::new(2023, 6, |t| t.parse_dyn_puzzle::<Races>());
 
 #[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -35,7 +31,7 @@ pub struct Races {
 }
 
 impl Races {
-	fn execute(&self) -> anyhow::Result<i64> {
+	fn execute(&self) -> eyre::Result<i64> {
 		self.races
 			.iter()
 			.map(move |&Race { time, dist }| {
@@ -77,18 +73,16 @@ impl<'a> Parsed<&'a str> for Races {
 }
 
 impl Puzzle for Races {
-	fn prepare_1(&mut self) -> anyhow::Result<()> {
-		if self.races.is_empty() {
-			anyhow::bail!("did not find any race data");
-		}
+	fn prepare_1(&mut self) -> eyre::Result<()> {
+		eyre::ensure!(!self.races.is_empty(), "did not find any race data");
 		Ok(())
 	}
 
-	fn part_1(&mut self) -> anyhow::Result<i64> {
+	fn part_1(&mut self) -> eyre::Result<i64> {
 		self.execute()
 	}
 
-	fn prepare_2(&mut self) -> anyhow::Result<()> {
+	fn prepare_2(&mut self) -> eyre::Result<()> {
 		let (time, dist) = self.races.iter().copied().fold(
 			(String::new(), String::new()),
 			|(mut times, mut dists), Race { time, dist }| {
@@ -103,7 +97,7 @@ impl Puzzle for Races {
 		Ok(())
 	}
 
-	fn part_2(&mut self) -> anyhow::Result<i64> {
+	fn part_2(&mut self) -> eyre::Result<i64> {
 		self.execute()
 	}
 }

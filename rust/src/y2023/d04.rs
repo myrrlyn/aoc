@@ -21,14 +21,10 @@ use tap::TapFallible;
 
 use crate::{
 	parse_number,
-	ParseResult,
-	Parseable as _,
-	Parsed,
-	Puzzle,
-	Solver,
+	prelude::*,
 };
 
-#[linkme::distributed_slice(crate::SOLVERS)]
+#[linkme::distributed_slice(SOLVERS)]
 static ITEM: Solver = Solver::new(2023, 4, |t| t.parse_dyn_puzzle::<Lottery>());
 
 #[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -45,14 +41,12 @@ impl<'a> Parsed<&'a str> for Lottery {
 }
 
 impl Puzzle for Lottery {
-	fn part_1(&mut self) -> anyhow::Result<i64> {
-		if self.cards.is_empty() {
-			anyhow::bail!("empty card set");
-		}
+	fn part_1(&mut self) -> eyre::Result<i64> {
+		eyre::ensure!(!self.cards.is_empty(), "empty card set");
 		Ok(self.cards.iter().map(Card::score).sum())
 	}
 
-	fn part_2(&mut self) -> anyhow::Result<i64> {
+	fn part_2(&mut self) -> eyre::Result<i64> {
 		let mut pile = BTreeMap::new();
 		for card in self.cards.as_slice() {
 			let this = pile.entry(card.ident).or_insert(0);

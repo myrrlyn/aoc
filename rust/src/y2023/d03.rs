@@ -11,7 +11,7 @@ use tap::Pipe;
 
 use crate::prelude::*;
 
-#[linkme::distributed_slice(crate::SOLVERS)]
+#[linkme::distributed_slice(SOLVERS)]
 static ITEM: Solver =
 	Solver::new(2023, 3, |t| t.parse_dyn_puzzle::<Blueprint>());
 
@@ -83,7 +83,7 @@ impl<'a> Parsed<&'a str> for Blueprint {
 }
 
 impl Puzzle for Blueprint {
-	fn prepare_1(&mut self) -> anyhow::Result<()> {
+	fn prepare_1(&mut self) -> eyre::Result<()> {
 		// Loop through all lines which have numbers in them
 		for (&part_line, part_nums) in self.all_nums.iter() {
 			// And select each number token in that line
@@ -113,7 +113,7 @@ impl Puzzle for Blueprint {
 		Ok(())
 	}
 
-	fn part_1(&mut self) -> anyhow::Result<i64> {
+	fn part_1(&mut self) -> eyre::Result<i64> {
 		self.part_nums
 			.iter()
 			.copied()
@@ -122,7 +122,7 @@ impl Puzzle for Blueprint {
 			.pipe(Ok)
 	}
 
-	fn prepare_2(&mut self) -> anyhow::Result<()> {
+	fn prepare_2(&mut self) -> eyre::Result<()> {
 		// Just copy over the prep-1 loop and add gear-saving.
 		// TODO(myrrlyn): Swap number and symbol scanning, only look for gears,
 		// and only save numbers touching gears.
@@ -162,7 +162,7 @@ impl Puzzle for Blueprint {
 		Ok(())
 	}
 
-	fn part_2(&mut self) -> anyhow::Result<i64> {
+	fn part_2(&mut self) -> eyre::Result<i64> {
 		self.gears
 			.values()
 			.filter(|v| v.len() == 2)

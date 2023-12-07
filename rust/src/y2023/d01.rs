@@ -1,15 +1,11 @@
 use tap::Pipe;
 
 use crate::{
+	prelude::*,
 	written_number,
-	ParseResult,
-	Parseable as _,
-	Parsed,
-	Puzzle,
-	Solver,
 };
 
-#[linkme::distributed_slice(crate::SOLVERS)]
+#[linkme::distributed_slice(SOLVERS)]
 static ITEM: Solver =
 	Solver::new(2023, 1, |t| t.parse_dyn_puzzle::<Calibration>());
 
@@ -79,11 +75,11 @@ impl<'a> Parsed<&'a str> for Calibration {
 }
 
 impl Puzzle for Calibration {
-	fn part_1(&mut self) -> anyhow::Result<i64> {
+	fn part_1(&mut self) -> eyre::Result<i64> {
 		self.digits_only.iter().copied().sum::<i64>().pipe(Ok)
 	}
 
-	fn part_2(&mut self) -> anyhow::Result<i64> {
+	fn part_2(&mut self) -> eyre::Result<i64> {
 		self.digits_and_words.iter().copied().sum::<i64>().pipe(Ok)
 	}
 }

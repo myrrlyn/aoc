@@ -3,7 +3,7 @@
 Daily solutions are placed in the module tree at `crate::y{year}::d{day}`, and
 must provide an implementation of the `Puzzle` trait. The execution harness
 finds puzzles by looking through a global registry. Modules can register a
-solver by using `#[linkme::distributed_slice(crate::SOLVERS)]` to place their
+solver by using `#[linkme::distributed_slice(SOLVERS)]` to place their
 virtualized parser into the global collection.
 
 Because Rust distinguishes between function *items* and function *pointers*, and
@@ -11,7 +11,7 @@ function names are typed as items, registration requires writing a do-nothing
 closure, like this:
 
 ```rust,ignore
-#[linkme::distributed_slice(crate::SOLVERS)]
+#[linkme::distributed_slice(SOLVERS)]
 static THIS: Solver = Solver::new(year, day, |t| t.parse_dyn_puzzle::<Today>());
 ```
 
@@ -130,7 +130,7 @@ pub fn solutions() -> &'static Registry {
 /// the execution harness to find and run it.
 pub trait Puzzle {
 	/// Prepares a solver to execute part 1.
-	fn prepare_1(&mut self) -> color_eyre::Result<()> {
+	fn prepare_1(&mut self) -> eyre::Result<()> {
 		Ok(())
 	}
 
@@ -139,7 +139,7 @@ pub trait Puzzle {
 	/// This is permitted to modify `self`, but generally should not. Part 2
 	/// solvers may wish to skip Part 1 if the computation is expensive and not
 	/// relevant to Part 2's work.
-	fn part_1(&mut self) -> color_eyre::Result<i64> {
+	fn part_1(&mut self) -> eyre::Result<i64> {
 		eyre::bail!("have not yet solved part 1");
 	}
 
@@ -147,7 +147,7 @@ pub trait Puzzle {
 	///
 	/// By default, this calls `self.prepare_1()`. Overriders should generally
 	/// assume that `self.part_1()` has *not* been called
-	fn prepare_2(&mut self) -> color_eyre::Result<()> {
+	fn prepare_2(&mut self) -> eyre::Result<()> {
 		self.prepare_1()?;
 		Ok(())
 	}
@@ -158,7 +158,7 @@ pub trait Puzzle {
 	/// invoking Part 2! Implementors can *only* assume that `.prepare_2()` has
 	/// been called, and must tolerate the part-1 methods being either run *or*
 	/// not run.
-	fn part_2(&mut self) -> color_eyre::Result<i64> {
+	fn part_2(&mut self) -> eyre::Result<i64> {
 		eyre::bail!("have not yet solved part 2");
 	}
 }
@@ -247,7 +247,7 @@ mod tests {
 	use super::*;
 
 	#[test]
-	fn written_numbers() -> color_eyre::Result<()> {
+	fn written_numbers() -> eyre::Result<()> {
 		let text = "onethreefive";
 		let (rest, one) = written_number::<i8>(text)?;
 		let (rest, three) = written_number::<i8>(rest)?;

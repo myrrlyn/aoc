@@ -17,14 +17,10 @@ use tap::TapFallible;
 
 use crate::{
 	parse_number,
-	ParseResult,
-	Parseable,
-	Parsed,
-	Puzzle,
-	Solver,
+	prelude::*,
 };
 
-#[linkme::distributed_slice(crate::SOLVERS)]
+#[linkme::distributed_slice(SOLVERS)]
 static ITEM: Solver = Solver::new(2023, 5, |t| t.parse_dyn_puzzle::<Lookup>());
 
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
@@ -54,7 +50,7 @@ impl<'a> Parsed<&'a str> for Lookup {
 }
 
 impl Puzzle for Lookup {
-	fn part_1(&mut self) -> anyhow::Result<i64> {
+	fn part_1(&mut self) -> eyre::Result<i64> {
 		self.almanac
 			.min_location(
 				self.seeds
@@ -62,10 +58,10 @@ impl Puzzle for Lookup {
 					.copied()
 					.inspect(|seed| tracing::debug!(?seed)),
 			)
-			.ok_or_else(|| anyhow::anyhow!("had no input seeds"))
+			.ok_or_else(|| eyre::eyre!("had no input seeds"))
 	}
 
-	fn prepare_2(&mut self) -> anyhow::Result<()> {
+	fn prepare_2(&mut self) -> eyre::Result<()> {
 		self.seed_ranges = self
 			.seeds
 			.chunks_exact(2)
@@ -77,7 +73,7 @@ impl Puzzle for Lookup {
 		Ok(())
 	}
 
-	fn part_2(&mut self) -> anyhow::Result<i64> {
+	fn part_2(&mut self) -> eyre::Result<i64> {
 		self.almanac
 			.min_location(
 				// This is a brutally slow and stupid way to run the solver.
@@ -93,7 +89,7 @@ impl Puzzle for Lookup {
 					)
 					.flat_map(|range| range.into_iter()),
 			)
-			.ok_or_else(|| anyhow::anyhow!("had no input seeds"))
+			.ok_or_else(|| eyre::eyre!("had no input seeds"))
 	}
 }
 

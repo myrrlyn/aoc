@@ -19,14 +19,10 @@ use tap::Pipe;
 
 use crate::{
 	parse_number,
-	ParseResult,
-	Parseable as _,
-	Parsed,
-	Puzzle,
-	Solver,
+	prelude::*,
 };
 
-#[linkme::distributed_slice(crate::SOLVERS)]
+#[linkme::distributed_slice(SOLVERS)]
 static ITEM: Solver = Solver::new(2023, 2, |t| t.parse_dyn_puzzle::<GameSet>());
 
 static FILTER: Record = Record {
@@ -73,7 +69,7 @@ impl<'a> Parsed<&'a str> for GameSet {
 }
 
 impl Puzzle for GameSet {
-	fn part_1(&mut self) -> anyhow::Result<i64> {
+	fn part_1(&mut self) -> eyre::Result<i64> {
 		// tracing::debug!(?self);
 		self.games
 			.iter()
@@ -85,7 +81,7 @@ impl Puzzle for GameSet {
 			.pipe(Ok)
 	}
 
-	fn part_2(&mut self) -> anyhow::Result<i64> {
+	fn part_2(&mut self) -> eyre::Result<i64> {
 		self.games
 			.values()
 			.map(|Record { red, blue, green }| (red * blue * green) as i64)

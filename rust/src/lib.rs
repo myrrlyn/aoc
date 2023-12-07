@@ -28,16 +28,27 @@ has *or has not* run its preparation or solver!
 !*/
 
 use std::{
+    fmt,
     sync::OnceLock,
     {collections::BTreeMap, ops::RangeInclusive},
 };
 
 pub use funty::{Integral, Signed};
-use nom::{character::complete::digit1, combinator::map_res, IResult};
+use nom::{
+    branch::alt,
+    bytes::complete::tag,
+    character::complete::digit1,
+    combinator::{map_res, value},
+    IResult,
+};
 use tap::Tap;
 
 pub mod coords;
 pub mod y2023;
+
+pub mod prelude {
+    pub use crate::{ParseResult, Parseable, Parsed, Puzzle, Solver, SOLVERS};
+}
 
 pub use crate::coords::{
     Cartesian2DPoint as Coord2D, Cartesian2DSpace as Grid2D, Cartesian3DPoint as Coord3D,
@@ -183,6 +194,45 @@ pub fn unify_ranges_inclusive<I: Integral>(
 }
 
 /// Parses a sequence of decimal digits into a given numeric primitive.
-pub fn parse_number<T: Integral>(text: &str) -> IResult<&str, T> {
+pub fn parse_number<T: Integral>(text: &str) -> IResult<&str, T>
+where
+    <T as TryFrom<i8>>::Error: fmt::Debug,
+{
     map_res(digit1, T::from_str)(text)
+}
+
+pub fn written_number<T: Integral>(text: &str) -> IResult<&str, T>
+where
+    <T as TryFrom<i8>>::Error: fmt::Debug,
+{
+    alt((
+        value(T::try_from(0i8).expect("infallible"), tag("zero")),
+        value(T::try_from(1i8).expect("infallible"), tag("one")),
+        value(T::try_from(2i8).expect("infallible"), tag("two")),
+        value(T::try_from(3i8).expect("infallible"), tag("three")),
+        value(T::try_from(4i8).expect("infallible"), tag("four")),
+        value(T::try_from(5i8).expect("infallible"), tag("five")),
+        value(T::try_from(6i8).expect("infallible"), tag("six")),
+        value(T::try_from(7i8).expect("infallible"), tag("seven")),
+        value(T::try_from(8i8).expect("infallible"), tag("eight")),
+        value(T::try_from(9i8).expect("infallible"), tag("nine")),
+    ))(text)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn written_numbers() -> anyhow::Result<()> {
+        let text = "onethreefive";
+        let (rest, one) = written_number::<i8>(text)?;
+        let (rest, three) = written_number::<i8>(rest)?;
+        let (rest, five) = written_number::<i8>(rest)?;
+        assert!(rest.is_empty());
+        assert_eq!(one, 1);
+        assert_eq!(three, 3);
+        assert_eq!(five, 5);
+        Ok(())
+    }
 }

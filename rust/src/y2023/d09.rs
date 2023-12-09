@@ -1,10 +1,25 @@
 use eyre::Context;
 use nom::{
 	bytes::complete::tag,
-	character::complete::{digit1, newline, space1},
-	combinator::{map, map_res, opt, recognize},
-	multi::{many1, separated_list1},
-	sequence::{preceded, terminated},
+	character::complete::{
+		digit1,
+		newline,
+		space1,
+	},
+	combinator::{
+		map,
+		map_res,
+		opt,
+		recognize,
+	},
+	multi::{
+		many1,
+		separated_list1,
+	},
+	sequence::{
+		preceded,
+		terminated,
+	},
 };
 
 use crate::prelude::*;
@@ -76,7 +91,7 @@ impl Puzzle for Oasis {
 #[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct HistoricalRecord {
-	readings: Vec<i64>,
+	readings:    Vec<i64>,
 	derivatives: Vec<Vec<i64>>,
 }
 

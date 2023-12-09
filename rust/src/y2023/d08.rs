@@ -3,7 +3,10 @@ use std::collections::BTreeMap;
 use nom::{
 	bytes::complete::tag,
 	character::complete::alphanumeric1,
-	sequence::{delimited, separated_pair},
+	sequence::{
+		delimited,
+		separated_pair,
+	},
 };
 use tap::TapFallible;
 
@@ -14,9 +17,9 @@ static ITEM: Solver = Solver::new(2023, 8, |t| t.parse_dyn_puzzle::<Maps>());
 
 pub struct Maps {
 	switches: String,
-	strings: BTreeMap<String, CacheKey>,
-	cache: BTreeMap<CacheKey, String>,
-	graph: BTreeMap<CacheKey, (CacheKey, CacheKey)>,
+	strings:  BTreeMap<String, CacheKey>,
+	cache:    BTreeMap<CacheKey, String>,
+	graph:    BTreeMap<CacheKey, (CacheKey, CacheKey)>,
 }
 
 impl<'a> Parsed<&'a str> for Maps {
@@ -27,7 +30,7 @@ impl<'a> Parsed<&'a str> for Maps {
 		let _ = lines.next();
 		let mut strings = BTreeMap::new();
 		let mut graph = BTreeMap::new();
-		let mut key_source = (0..).map(|key| CacheKey { key });
+		let mut key_source = (0 ..).map(|key| CacheKey { key });
 		for line in lines {
 			let (_, (from, (left, right))) = separated_pair(
 				alphanumeric1,
@@ -59,15 +62,12 @@ impl<'a> Parsed<&'a str> for Maps {
 			.iter()
 			.map(|(key, &val)| (val, key.clone()))
 			.collect();
-		Ok((
-			"",
-			Self {
-				switches,
-				strings,
-				cache,
-				graph,
-			},
-		))
+		Ok(("", Self {
+			switches,
+			strings,
+			cache,
+			graph,
+		}))
 	}
 }
 

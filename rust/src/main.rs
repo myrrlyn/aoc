@@ -227,8 +227,8 @@ fn render_known_puzzles() -> String {
 		for day in days {
 			write!(&mut show, ", d{day:0>2}").ok();
 		}
+		writeln!(&mut show).ok();
 	}
-	writeln!(&mut show).ok();
 	write!(
 		&mut show,
 		"Do not use the `y` or `d` prefixes when providing arguments."

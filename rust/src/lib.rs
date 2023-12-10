@@ -113,7 +113,7 @@ pub static SOLVERS: [Solver];
 pub fn solutions() -> &'static Registry {
 	static REGISTRY: OnceLock<Registry> = OnceLock::new();
 	REGISTRY.get_or_init(|| {
-		SOLVERS.iter().inspect(|item| tracing::debug!(?item)).fold(
+		SOLVERS.iter().fold(
 			Registry::new(),
 			|mut accum, &Solver { year, day, func }| {
 				accum.entry(year).or_default().insert(day, func);

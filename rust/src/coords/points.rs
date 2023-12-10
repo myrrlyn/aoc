@@ -13,6 +13,7 @@ use tap::Tap;
 ///
 /// These are sorted by Y, then X.
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Cartesian2D<I: Signed> {
 	pub y: I,
 	pub x: I,
@@ -22,6 +23,7 @@ pub struct Cartesian2D<I: Signed> {
 ///
 /// These are sorted by Z, then Y, then X.
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Cartesian3D<I: Signed> {
 	pub z: I,
 	pub y: I,

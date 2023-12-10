@@ -64,13 +64,11 @@ impl Args {
 		file_path.push(self.year.to_string());
 		file_path.push(format!("d{:0>2}.txt", self.day));
 		let src_file = file_path.display();
-		tracing::debug!(?src_file);
 		cwd.push(&file_path);
 
 		// Look up the requested solver in the registry
 		let (year, day) = (self.year, self.day);
 		let make_solver = wyz_aoc::solutions()
-			.tap(|registry| tracing::debug!(?registry))
 			.get(&year)
 			.ok_or_else(|| eyre::eyre!("{year} has no registered solutions"))?
 			.get(&day)

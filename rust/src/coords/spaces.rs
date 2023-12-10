@@ -17,6 +17,7 @@ use super::{
 
 /// A 2-dimensional planar grid, sparsely populated.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Cartesian2D<I: Signed, T> {
 	rows:   BTreeMap<I, BTreeMap<I, T>>,
 	bounds: Option<(Cartesian2DPoint<I>, Cartesian2DPoint<I>)>,
@@ -24,6 +25,7 @@ pub struct Cartesian2D<I: Signed, T> {
 
 /// A 3-dimensional planar grid, sparsely populated.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Cartesian3D<I: Signed, T> {
 	planes: BTreeMap<I, Cartesian2D<I, T>>,
 	bounds: Option<(Cartesian3DPoint<I>, Cartesian3DPoint<I>)>,
@@ -35,9 +37,42 @@ impl<I: Signed, T> Cartesian2D<I, T> {
 		Self::default()
 	}
 
+	pub fn raw_data(&self) -> &BTreeMap<I, BTreeMap<I, T>> {
+		&self.rows
+	}
+
 	/// Resets the grid.
 	pub fn clear(&mut self) {
 		*self = Self::new();
+	}
+
+	pub fn is_empty(&self) -> bool {
+		self.rows.is_empty() || self.rows.values().all(|row| row.is_empty())
+	}
+
+	/// If the space is not empty, returns a pair of points describing its
+	/// bounding box.
+	///
+	/// ## Returns
+	///
+	/// The first element of the tuple has the minimum X and Y values observed
+	/// in the space. These values do not have to be from the same point.
+	///
+	/// The second element of the tuple has the maximum X and Y values observed
+	/// in the space. These values do not have to be from the same point.
+	pub fn dimensions(
+		&self,
+	) -> Option<(Cartesian2DPoint<I>, Cartesian2DPoint<I>)> {
+		let mut points = self.iter().map(|(pt, _)| pt);
+		let mut min = points.next()?;
+		let mut max = min;
+		for Cartesian2DPoint { x, y } in points {
+			min.x = min.x.min(x);
+			min.y = min.y.min(y);
+			max.x = max.x.max(x);
+			max.y = max.y.max(y);
+		}
+		Some((min, max))
 	}
 
 	/// Tests if the graph stores a value at a given point.
@@ -72,6 +107,13 @@ impl<I: Signed, T> Cartesian2D<I, T> {
 		self.rows.get(&y).and_then(|row| row.get(&x))
 	}
 
+	pub fn get_mut(
+		&mut self,
+		Cartesian2DPoint { x, y }: Cartesian2DPoint<I>,
+	) -> Option<&mut T> {
+		self.rows.get_mut(&y).and_then(|row| row.get_mut(&x))
+	}
+
 	/// Inserts a value into the graph at a given point.
 	pub fn insert(&mut self, point: Cartesian2DPoint<I>, value: T) {
 		self.get_or_insert_with(point, || value);
@@ -84,7 +126,7 @@ impl<I: Signed, T> Cartesian2D<I, T> {
 	pub fn update_default(
 		&mut self,
 		point: Cartesian2DPoint<I>,
-		func: fn(&mut T),
+		func: impl FnOnce(&mut T),
 	) where
 		T: Default,
 	{
@@ -128,6 +170,27 @@ impl<I: Signed, T> Cartesian2D<I, T> {
 					.map(move |(&x, val)| (Cartesian2DPoint::new(x, y), val))
 			})
 			.flatten()
+	}
+
+	pub fn into_iter(self) -> impl Iterator<Item = (Cartesian2DPoint<I>, T)> {
+		self.rows
+			.into_iter()
+			.map(|(y, row)| {
+				row.into_iter()
+					.map(move |(x, val)| (Cartesian2DPoint::new(x, y), val))
+			})
+			.flatten()
+	}
+}
+
+impl<I: Signed, T> FromIterator<(Cartesian2DPoint<I>, T)> for Cartesian2D<I, T> {
+	fn from_iter<II: IntoIterator<Item = (Cartesian2DPoint<I>, T)>>(
+		src: II,
+	) -> Self {
+		src.into_iter().fold(Self::new(), |mut this, (coord, val)| {
+			this.insert(coord, val);
+			this
+		})
 	}
 }
 

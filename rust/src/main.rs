@@ -4,6 +4,7 @@ use std::{
 		Write as _,
 	},
 	fs,
+	path::PathBuf,
 };
 
 use clap::{
@@ -55,14 +56,16 @@ pub struct Args {
 impl Args {
 	fn execute_program(&self) -> eyre::Result<()> {
 		let mut cwd = std::env::current_dir()?;
-		cwd.extend(&["assets", match self.data {
+		let mut file_path = PathBuf::new();
+		file_path.extend(&["assets", match self.data {
 			Data::Sample => "samples",
 			Data::Input => "inputs",
 		}]);
-		cwd.push(self.year.to_string());
-		cwd.push(format!("d{:0>2}.txt", self.day));
-		let src_file = cwd.display();
+		file_path.push(self.year.to_string());
+		file_path.push(format!("d{:0>2}.txt", self.day));
+		let src_file = file_path.display();
 		tracing::debug!(?src_file);
+		cwd.push(&file_path);
 
 		// Look up the requested solver in the registry
 		let (year, day) = (self.year, self.day);
@@ -75,7 +78,8 @@ impl Args {
 			.wrap_err_with(|| {
 				eyre::eyre!("{year}-{day:0>2} has no registered solution")
 			})?;
-		let source_text = fs::read_to_string(cwd)?;
+		let source_text = fs::read_to_string(cwd)
+			.wrap_err_with(|| eyre::eyre!("could not read {src_file}"))?;
 
 		// This error map is necessary because nom's default error holds views
 		// into the source data, but the error is returned out of this function
@@ -88,26 +92,26 @@ impl Args {
 
 		if self.step != Step::Two {
 			tracing::info!(step = 1, "preparing");
-			solver.prepare_1().with_context(|| {
+			solver.prepare_1().wrap_err_with(|| {
 				format!("error preparing {year}-{day:0>2}#1")
 			})?;
 			tracing::info!(step = 1, "running");
 			solver
 				.part_1()
-				.with_context(|| format!("failure running {year}-{day:0>2}#1"))?
+				.wrap_err_with(|| format!("failure running {year}-{day:0>2}#1"))?
 				.tap(|answer| {
 					tracing::info!(?year, ?day, part = 1, ?answer, "solved!")
 				});
 		}
 		if self.step != Step::One {
 			tracing::info!(step = 2, "preparing");
-			solver.prepare_2().with_context(|| {
+			solver.prepare_2().wrap_err_with(|| {
 				format!("error preparing {year}-{day:0>2}#2")
 			})?;
 			tracing::info!(step = 2, "running");
 			solver
 				.part_2()
-				.with_context(|| format!("failure running {year}-{day:0>2}#2"))?
+				.wrap_err_with(|| format!("failure running {year}-{day:0>2}#2"))?
 				.tap(|answer| {
 					tracing::info!(?year, ?day, part = 2, ?answer, "solved!")
 				});
@@ -128,10 +132,7 @@ pub enum Data {
 
 impl fmt::Display for Data {
 	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-		write!(fmt, "Source::{}", match self {
-			Self::Sample => "Sample",
-			Self::Input => "Input",
-		})
+		fmt::Debug::fmt(self, fmt)
 	}
 }
 
@@ -183,12 +184,12 @@ fn main() -> eyre::Result<()> {
 			},
 			ErrorKind::MissingRequiredArgument => {
 				return Err(err)
-					.context("did not provide a year and day")
-					.with_context(render_known_puzzles);
+					.wrap_err("did not provide a year and day")
+					.wrap_err_with(render_known_puzzles);
 			},
 			_ => {
 				eprintln!("{err:?}");
-				return Err(err).context("failed to parse CLI args");
+				return Err(err).wrap_err("failed to parse CLI args");
 			},
 		},
 	};
@@ -205,12 +206,12 @@ fn main() -> eyre::Result<()> {
 	let trace_filt = tracing_subscriber::EnvFilter::builder()
 		.with_default_directive(LevelFilter::INFO.into())
 		.from_env()
-		.context("RUST_LOG envvar cannot be parsed as a tracing directive")?;
+		.wrap_err("RUST_LOG envvar cannot be parsed as a tracing directive")?;
 	tracing_subscriber::registry()
 		.with(trace_fmt)
 		.with(trace_filt)
 		.try_init()
-		.context("failed to install a trace sink")?;
+		.wrap_err("failed to install a trace sink")?;
 
 	// Dispatch to the solvers!
 	args.execute_program()

@@ -7,10 +7,12 @@ use std::{
 	ops::RangeInclusive,
 };
 
+use funty::Signed;
+use tap::Pipe;
+
 use super::{
 	Cartesian2DPoint,
 	Cartesian3DPoint,
-	Signed,
 };
 
 /// A 2-dimensional planar grid, sparsely populated.
@@ -31,6 +33,11 @@ impl<I: Signed, T> Cartesian2D<I, T> {
 	/// Creates a new, blank, 2-D grid.
 	pub fn new() -> Self {
 		Self::default()
+	}
+
+	/// Resets the grid.
+	pub fn clear(&mut self) {
+		*self = Self::new();
 	}
 
 	/// Tests if the graph stores a value at a given point.
@@ -70,6 +77,25 @@ impl<I: Signed, T> Cartesian2D<I, T> {
 		self.get_or_insert_with(point, || value);
 	}
 
+	/// Applies a transform function to the value stored at the given point.
+	///
+	/// If there is no value at the point, then the default value is constructed
+	/// before being passed to the update function.
+	pub fn update_default(
+		&mut self,
+		point: Cartesian2DPoint<I>,
+		func: fn(&mut T),
+	) where
+		T: Default,
+	{
+		self.rows
+			.entry(point.y)
+			.or_default()
+			.entry(point.x)
+			.or_default()
+			.pipe(func);
+	}
+
 	/// Views a value stored at a give point. If the point is not currently
 	/// stored within the graph, it is emplaced by calling the provided `fill`
 	/// function.
@@ -91,6 +117,17 @@ impl<I: Signed, T> Cartesian2D<I, T> {
 			},
 		};
 		out
+	}
+
+	/// Iterates over all points that have a live value.
+	pub fn iter(&self) -> impl Iterator<Item = (Cartesian2DPoint<I>, &T)> {
+		self.rows
+			.iter()
+			.map(|(&y, row)| {
+				row.iter()
+					.map(move |(&x, val)| (Cartesian2DPoint::new(x, y), val))
+			})
+			.flatten()
 	}
 }
 

@@ -6,9 +6,8 @@ use std::{
 	},
 };
 
+use funty::Signed;
 use tap::Tap;
-
-use super::Signed;
 
 /// An integral co-ordinate on a two-dimensional gridded plane.
 ///

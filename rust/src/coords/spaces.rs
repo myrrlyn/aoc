@@ -4,6 +4,10 @@ use std::{
 		BTreeSet,
 		VecDeque,
 	},
+	fmt::{
+		self,
+		Write as _,
+	},
 	ops::RangeInclusive,
 };
 
@@ -162,7 +166,9 @@ impl<I: Signed, T> Cartesian2D<I, T> {
 	}
 
 	/// Iterates over all points that have a live value.
-	pub fn iter(&self) -> impl Iterator<Item = (Cartesian2DPoint<I>, &T)> {
+	pub fn iter(
+		&self,
+	) -> impl Iterator<Item = (Cartesian2DPoint<I>, &T)> + Clone {
 		self.rows
 			.iter()
 			.map(|(&y, row)| {
@@ -180,6 +186,185 @@ impl<I: Signed, T> Cartesian2D<I, T> {
 					.map(move |(x, val)| (Cartesian2DPoint::new(x, y), val))
 			})
 			.flatten()
+	}
+}
+
+/// Renders the grid in Quadrant IV, normalizing to have the minimum point set
+/// at the origin.
+impl<I: Signed, T> fmt::Display for Cartesian2D<I, T> {
+	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+		let Some((min, max)) = self.dimensions()
+		else {
+			return Ok(());
+		};
+		let drawings = if fmt.alternate() {
+			['─', '│', '┼', '▟', ' ', '·']
+		}
+		else {
+			['-', '|', '+', '/', '.', '#']
+		};
+		let max_col = (max.x - min.x).as_usize();
+		let cols_width = max_col + 1;
+		let max_row = (max.y - min.y).as_usize();
+
+		if fmt.alternate() && (min.x != I::ZERO || min.y != I::ZERO) {
+			writeln!(
+				fmt,
+				"{:^w$}",
+				&format!("Translated from {}", min),
+				w = cols_width,
+			)?;
+		}
+		let mut places = [String::new(), String::new(), String::new()];
+		for col in 0 ..= max_col {
+			let h = col / 256;
+			let m = col / 16;
+			let l = col % 16;
+			if col % 256 == 0 {
+				if fmt.alternate() {
+					write!(&mut places[0], "{h:─<256x}")?;
+				}
+				else {
+					write!(&mut places[0], "{h:-<256x}")?;
+				}
+			}
+			if l == 0 {
+				if fmt.alternate() {
+					write!(&mut places[1], "{m:─<16x}")?;
+				}
+				else {
+					write!(&mut places[1], "{m:-<16x}")?;
+				}
+			}
+			write!(&mut places[2], "{l:x}")?;
+		}
+		if let Some(snip_at) =
+			places[2].char_indices().last().map(|(idx, _)| idx)
+		{
+			for line in &mut places[.. 2] {
+				if let Some(snip) =
+					line.char_indices().nth(snip_at + 1).map(|(idx, _)| idx)
+				{
+					line.truncate(snip);
+				}
+			}
+		}
+		let pfx_cols = if max_row > 255 {
+			3
+		}
+		else if max_row > 15 {
+			2
+		}
+		else {
+			1
+		};
+		if max_row > 255 {
+			writeln!(
+				fmt,
+				"{: <pfx$}{sep}{line}",
+				"",
+				sep = drawings[1],
+				line = places[0],
+				pfx = pfx_cols,
+			)?;
+		}
+		if max_row > 15 {
+			writeln!(
+				fmt,
+				"{: <pfx$}{sep}{line}",
+				"",
+				sep = drawings[1],
+				line = places[1],
+				pfx = pfx_cols,
+			)?;
+		}
+		writeln!(
+			fmt,
+			"{: <pfx$}{sep}{line}",
+			drawings[3],
+			sep = drawings[1],
+			line = places[2],
+			pfx = pfx_cols,
+		)?;
+		if fmt.alternate() {
+			writeln!(
+				fmt,
+				"{:─<pfx$}┼{:─<cols$}",
+				"",
+				"",
+				pfx = pfx_cols,
+				cols = cols_width,
+			)?;
+		}
+		else {
+			writeln!(
+				fmt,
+				"{:-<pfx$}+{:-<cols$}",
+				"",
+				"",
+				pfx = pfx_cols,
+				cols = cols_width,
+			)?;
+		}
+		for row in 0 ..= max_row {
+			let h = row / 256;
+			let m = row / 16;
+			let l = row % 16;
+			if max_row > 255 {
+				if row % 256 == 0 {
+					write!(fmt, "{h:x}")?;
+				}
+				else {
+					fmt.write_str(" ")?;
+				}
+			}
+			if max_row > 15 {
+				if l == 0 {
+					write!(fmt, "{m:x}")?;
+				}
+				else {
+					fmt.write_str(" ")?;
+				}
+			}
+			write!(fmt, "{l:x}{}", drawings[1])?;
+			// TODO(myrrlyn): This is a *horrible* render pattern. It's
+			// quadratic!
+			if let Some((_, row)) =
+				self.rows.iter().find(|(r, _)| r.as_usize() == row)
+			{
+				let mut last = 0;
+				for col in row.keys() {
+					let col = col.as_usize();
+					if fmt.alternate() {
+						write!(
+							fmt,
+							"{: >pad$}",
+							drawings[5],
+							pad = col + 1 - last
+						)?;
+					}
+					else {
+						write!(
+							fmt,
+							"{:.>pad$}",
+							drawings[5],
+							pad = col + 1 - last
+						)?;
+					}
+					last = col + 1;
+				}
+				if !fmt.alternate() && last <= max_col {
+					write!(fmt, "{:.<pad$}", "", pad = max_col + 1 - last)?;
+				}
+			}
+			else {
+				if !fmt.alternate() {
+					write!(fmt, "{:.<pad$}", "", pad = max_col + 1)?;
+				}
+			}
+			writeln!(fmt)?;
+		}
+		Ok(())
 	}
 }
 

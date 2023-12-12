@@ -29,11 +29,15 @@ has *or has not* run its preparation or solver!
 
 use std::{
 	collections::BTreeMap,
+	env,
 	fmt,
+	fs,
 	ops::RangeInclusive,
+	path::PathBuf,
 	sync::OnceLock,
 };
 
+use eyre::Context;
 pub use funty::{
 	Integral,
 	Signed,
@@ -98,6 +102,60 @@ pub struct Solver {
 impl Solver {
 	pub const fn new(year: u16, day: u8, func: DynParser) -> Self {
 		Self { year, day, func }
+	}
+
+	#[tracing::instrument(name = "solve", skip(self, group), fields(year=%self.year, day=%self.day))]
+	pub fn solve(
+		&self,
+		group: &str,
+		part_1: bool,
+		part_2: bool,
+	) -> eyre::Result<(Option<i64>, Option<i64>)> {
+		let text = self.load_input(group)?;
+		tracing::trace!("loaded input");
+		for line in text.lines().take(3) {
+			tracing::trace!(%line, "input data");
+		}
+
+		let (rest, mut solver) = (self.func)(&text)
+			.map_err(|err| eyre::eyre!("{err}"))
+			.wrap_err("failed to parse input")?;
+		if !rest.trim().is_empty() {
+			let rest = rest.lines().next().ok_or_else(|| {
+				eyre::eyre!("failed to render unparsed input for error message")
+			})?;
+			let rest = format!("{rest}...");
+			tracing::warn!(%rest, "unparsed input remaining");
+		}
+		let mut one = None;
+		if part_1 {
+			solver
+				.prepare_1()
+				.wrap_err("could not prepare for part 1")?;
+			one = Some(solver.part_1().wrap_err("could not solve part 1")?);
+		}
+
+		let mut two = None;
+		if part_2 {
+			solver
+				.prepare_2()
+				.wrap_err("could not prepare for part 2")?;
+			two = Some(solver.part_2().wrap_err("could not solve part 2")?);
+		}
+
+		Ok((one, two))
+	}
+
+	#[tracing::instrument(name = "gather", skip(self))]
+	pub fn load_input(&self, group: &str) -> eyre::Result<String> {
+		let mut path: PathBuf = ["assets", group].into_iter().collect();
+		path.push(self.year.to_string());
+		path.push(format!("d{:0>2}.txt", self.day));
+		tracing::trace!(file=%path.display(), "generated input path");
+		let mut file = env::current_dir()?;
+		file.extend(path.components());
+		fs::read_to_string(&file)
+			.wrap_err_with(|| eyre::eyre!("could not read {}", file.display()))
 	}
 }
 
@@ -167,11 +225,16 @@ pub trait Parsed<Input>: Sized {
 	/// Parses the input into a fresh instance of `Self`.
 	fn parse_wyz(src: Input) -> ParseResult<Input, Self>;
 
+	/// Parses the input structure into a boxed instance of `Self`.
+	fn parse_wyz_boxed(src: Input) -> ParseResult<Input, Box<Self>> {
+		Self::parse_wyz(src).map(|(rest, this)| (rest, Box::new(this)))
+	}
+
 	/// Parses the input into a virtualized instance of `Self`.
 	fn parse_dyn_puzzle(src: Input) -> ParseResult<Input, Box<dyn Puzzle>>
 	where Self: 'static + Puzzle {
-		Self::parse_wyz(src)
-			.map(|(rest, this)| (rest, Box::new(this) as Box<dyn Puzzle>))
+		Self::parse_wyz_boxed(src)
+			.map(|(rest, this)| (rest, this as Box<dyn Puzzle>))
 	}
 }
 

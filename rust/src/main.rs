@@ -1,10 +1,6 @@
-use std::{
-	fmt::{
-		self,
-		Write as _,
-	},
-	fs,
-	path::PathBuf,
+use std::fmt::{
+	self,
+	Write as _,
 };
 
 use clap::{
@@ -16,6 +12,7 @@ use eyre::WrapErr as _;
 use tap::Tap;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::prelude::*;
+use wyz_aoc::Solver;
 
 /** Runs an Advent of Code solution.
 
@@ -54,65 +51,65 @@ pub struct Args {
 }
 
 impl Args {
+	#[tracing::instrument(skip(self), fields(year=%self.year, day=%self.day))]
 	fn execute_program(&self) -> eyre::Result<()> {
-		let mut cwd = std::env::current_dir()?;
-		let mut file_path = PathBuf::new();
-		file_path.extend(&["assets", match self.data {
-			Data::Sample => "samples",
-			Data::Input => "inputs",
-		}]);
-		file_path.push(self.year.to_string());
-		file_path.push(format!("d{:0>2}.txt", self.day));
-		let src_file = file_path.display();
-		cwd.push(&file_path);
-
+		let span = tracing::trace_span!("lookup");
+		let span = span.enter();
 		// Look up the requested solver in the registry
 		let (year, day) = (self.year, self.day);
-		let make_solver = wyz_aoc::solutions()
+		let solution = wyz_aoc::solutions()
 			.get(&year)
-			.ok_or_else(|| eyre::eyre!("{year} has no registered solutions"))?
-			.get(&day)
+			.and_then(|y| y.get(&day))
 			.ok_or_else(|| eyre::eyre!("{}", render_known_puzzles()))
 			.wrap_err_with(|| {
 				eyre::eyre!("{year}-{day:0>2} has no registered solution")
 			})?;
-		let source_text = fs::read_to_string(cwd)
-			.wrap_err_with(|| eyre::eyre!("could not read {src_file}"))?;
+		let solver = Solver::new(self.year, self.day, *solution);
+		tracing::trace!("found solver");
+		drop(span);
 
+		let source_text = solver.load_input(match self.data {
+			Data::Sample => "sample",
+			Data::Input => "inputs",
+		})?;
+
+		let span = tracing::trace_span!("solve");
+		let _span = span.enter();
+		tracing::trace!("parsing");
 		// This error map is necessary because nom's default error holds views
 		// into the source data, but the error is returned out of this function
 		// after the source text is destroyed.
-		let (rest, mut solver) = (make_solver)(source_text.as_str())
+		let (rest, mut solver) = (solution)(source_text.as_str())
 			.map_err(|err| eyre::eyre!("{err}"))?;
 		if !rest.trim().is_empty() {
 			tracing::warn!(?rest, "unparsed input remaining");
 		}
 
 		if self.step != Step::Two {
-			tracing::info!(step = 1, "preparing");
+			let span = tracing::trace_span!("", part = 1);
+			let _span = span.enter();
+			tracing::info!("preparing");
 			solver.prepare_1().wrap_err_with(|| {
 				format!("error preparing {year}-{day:0>2}#1")
 			})?;
-			tracing::info!(step = 1, "running");
+			tracing::info!("running");
 			solver
 				.part_1()
 				.wrap_err_with(|| format!("failure running {year}-{day:0>2}#1"))?
-				.tap(|answer| {
-					tracing::info!(?year, ?day, part = 1, ?answer, "solved!")
-				});
+				.tap(|answer| tracing::info!(?answer, "solved!"));
 		}
 		if self.step != Step::One {
-			tracing::info!(step = 2, "preparing");
+			let span = tracing::trace_span!("", part = 2);
+			let _span = span.enter();
+			tracing::info!("preparing");
 			solver.prepare_2().wrap_err_with(|| {
 				format!("error preparing {year}-{day:0>2}#2")
 			})?;
-			tracing::info!(step = 2, "running");
+			tracing::info!("running");
 			solver
 				.part_2()
 				.wrap_err_with(|| format!("failure running {year}-{day:0>2}#2"))?
-				.tap(|answer| {
-					tracing::info!(?year, ?day, part = 2, ?answer, "solved!")
-				});
+				.tap(|answer| tracing::info!(?answer, "solved!"));
 		}
 
 		Ok(())

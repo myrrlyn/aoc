@@ -8,10 +8,14 @@ use std::{
 		self,
 		Write as _,
 	},
+	iter::FusedIterator,
 	ops::RangeInclusive,
 };
 
-use funty::Signed;
+use funty::{
+	Fundamental,
+	Signed,
+};
 use tap::Pipe;
 
 use super::{
@@ -168,7 +172,10 @@ impl<I: Signed, T> Cartesian2D<I, T> {
 	/// Iterates over all points that have a live value.
 	pub fn iter(
 		&self,
-	) -> impl Iterator<Item = (Cartesian2DPoint<I>, &T)> + Clone {
+	) -> impl Iterator<Item = (Cartesian2DPoint<I>, &T)>
+	+ DoubleEndedIterator
+	+ FusedIterator
+	+ Clone {
 		self.rows
 			.iter()
 			.map(|(&y, row)| {
@@ -178,7 +185,11 @@ impl<I: Signed, T> Cartesian2D<I, T> {
 			.flatten()
 	}
 
-	pub fn into_iter(self) -> impl Iterator<Item = (Cartesian2DPoint<I>, T)> {
+	pub fn into_iter(
+		self,
+	) -> impl Iterator<Item = (Cartesian2DPoint<I>, T)>
+	+ DoubleEndedIterator
+	+ FusedIterator {
 		self.rows
 			.into_iter()
 			.map(|(y, row)| {
@@ -187,26 +198,72 @@ impl<I: Signed, T> Cartesian2D<I, T> {
 			})
 			.flatten()
 	}
-}
 
-/// Renders the grid in Quadrant IV, normalizing to have the minimum point set
-/// at the origin.
-impl<I: Signed, T> fmt::Display for Cartesian2D<I, T> {
-	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+	/// Yields only the values which are placed in a particular row. They are
+	/// yielded in order of increasing column.
+	pub fn row<'a>(
+		&'a self,
+		row: I,
+	) -> impl 'a
+	+ Iterator<Item = (Cartesian2DPoint<I>, &'a T)>
+	+ DoubleEndedIterator
+	+ FusedIterator {
+		// Filtering rows *before* producing the column iterator results in less
+		// wasted work skipping over non-matching points.
+		self.rows
+			.iter()
+			.filter(move |&(&r, _)| r == row)
+			.map(|(&r, row)| {
+				row.iter()
+					.map(move |(&c, val)| (Cartesian2DPoint::new(c, r), val))
+			})
+			.flatten()
+	}
+
+	/// Yields only the values which are placed in a particular column. They are
+	/// yielded in order of increasing row.
+	pub fn column<'a>(
+		&'a self,
+		column: I,
+	) -> impl 'a
+	+ Iterator<Item = (Cartesian2DPoint<I>, &'a T)>
+	+ DoubleEndedIterator
+	+ FusedIterator {
+		// Each row has either zero or one entries in the column.
+		self.rows.iter().flat_map(move |(&r, row)| {
+			row.get(&column)
+				.map(move |val| (Cartesian2DPoint::new(column, r), val))
+		})
+	}
+
+	/// Renders the space into a formatter. Callers can provide a hook which
+	/// yields a single character, allowing customization of the displayed
+	/// object.
+	pub fn render(
+		&self,
+		fmt: &mut fmt::Formatter,
+		mut per_cell: impl FnMut(Cartesian2DPoint<I>, &T) -> char,
+	) -> fmt::Result {
 		let Some((min, max)) = self.dimensions()
 		else {
 			return Ok(());
 		};
+		// The axis-drawing characters are:
+		// 0. horizontal bar
+		// 1. vertical bar
+		// 2. intersection
+		// 3. SW-to-NE diagonal fill
 		let drawings = if fmt.alternate() {
-			['─', '│', '┼', '▟', ' ', '·']
+			['─', '│', '┼', '▟']
 		}
 		else {
-			['-', '|', '+', '/', '.', '#']
+			['-', '|', '+', '/']
 		};
-		let max_col = (max.x - min.x).as_usize();
-		let cols_width = max_col + 1;
-		let max_row = (max.y - min.y).as_usize();
+		let max_col = max.x - min.x;
+		let cols_width = max_col.as_usize() + 1;
+		let max_row = max.y - min.y;
 
+		// Display the origin-shift in expanded mode.
 		if fmt.alternate() && (min.x != I::ZERO || min.y != I::ZERO) {
 			writeln!(
 				fmt,
@@ -215,10 +272,15 @@ impl<I: Signed, T> fmt::Display for Cartesian2D<I, T> {
 				w = cols_width,
 			)?;
 		}
+		// Render column markers, wrapping at 16^3.
+		// These accumulate, rather than write directly into the buffer, because
+		// the high lines prefer to over-draw rather than branch every loop, and
+		// we march through the columns only once rather than per line of text
+		// in the axis header.
 		let mut places = [String::new(), String::new(), String::new()];
-		for col in 0 ..= max_col {
-			let h = col / 256;
-			let m = col / 16;
+		for col in 0 ..= (max_col.as_usize()) {
+			let h = (col / 256) % 16;
+			let m = (col / 16) % 16;
 			let l = col % 16;
 			if col % 256 == 0 {
 				if fmt.alternate() {
@@ -238,27 +300,26 @@ impl<I: Signed, T> fmt::Display for Cartesian2D<I, T> {
 			}
 			write!(&mut places[2], "{l:x}")?;
 		}
-		if let Some(snip_at) =
-			places[2].char_indices().last().map(|(idx, _)| idx)
-		{
-			for line in &mut places[.. 2] {
-				if let Some(snip) =
-					line.char_indices().nth(snip_at + 1).map(|(idx, _)| idx)
-				{
-					line.truncate(snip);
-				}
+		// Truncate each line.
+		for line in &mut places[.. 2] {
+			if let Some(snip) =
+				line.char_indices().nth(cols_width).map(|(idx, _)| idx)
+			{
+				line.truncate(snip);
 			}
 		}
-		let pfx_cols = if max_row > 255 {
+		let huge = max_row.as_usize() > 255;
+		let big = max_row.as_usize() > 15;
+		let pfx_cols = if huge {
 			3
 		}
-		else if max_row > 15 {
+		else if big {
 			2
 		}
 		else {
 			1
 		};
-		if max_row > 255 {
+		if huge {
 			writeln!(
 				fmt,
 				"{: <pfx$}{sep}{line}",
@@ -268,7 +329,7 @@ impl<I: Signed, T> fmt::Display for Cartesian2D<I, T> {
 				pfx = pfx_cols,
 			)?;
 		}
-		if max_row > 15 {
+		if big {
 			writeln!(
 				fmt,
 				"{: <pfx$}{sep}{line}",
@@ -306,19 +367,22 @@ impl<I: Signed, T> fmt::Display for Cartesian2D<I, T> {
 				cols = cols_width,
 			)?;
 		}
-		for row in 0 ..= max_row {
-			let h = row / 256;
-			let m = row / 16;
-			let l = row % 16;
-			if max_row > 255 {
-				if row % 256 == 0 {
+
+		let mut row = min.y;
+		while row <= max.y {
+			let r_abs = row.as_usize();
+			let h = r_abs / 256;
+			let m = r_abs / 16;
+			let l = r_abs % 16;
+			if max_row.as_usize() > 255 {
+				if r_abs % 256 == 0 {
 					write!(fmt, "{h:x}")?;
 				}
 				else {
 					fmt.write_str(" ")?;
 				}
 			}
-			if max_row > 15 {
+			if max_row.as_usize() > 15 {
 				if l == 0 {
 					write!(fmt, "{m:x}")?;
 				}
@@ -327,44 +391,44 @@ impl<I: Signed, T> fmt::Display for Cartesian2D<I, T> {
 				}
 			}
 			write!(fmt, "{l:x}{}", drawings[1])?;
-			// TODO(myrrlyn): This is a *horrible* render pattern. It's
-			// quadratic!
-			if let Some((_, row)) =
-				self.rows.iter().find(|(r, _)| r.as_usize() == row)
-			{
+
+			if let Some(vals) = self.rows.get(&row) {
 				let mut last = 0;
-				for col in row.keys() {
-					let col = col.as_usize();
+				for (&col, val) in vals.iter() {
+					// This could be a string.
+					let sym = per_cell(Cartesian2DPoint::new(col, row), val);
+					let col = (col.as_isize() - min.x.as_isize()).as_usize();
+					// The void character has to be hard-coded.
 					if fmt.alternate() {
-						write!(
-							fmt,
-							"{: >pad$}",
-							drawings[5],
-							pad = col + 1 - last
-						)?;
+						write!(fmt, "{sym: >pad$}", pad = col + 1 - last)?;
 					}
 					else {
-						write!(
-							fmt,
-							"{:.>pad$}",
-							drawings[5],
-							pad = col + 1 - last
-						)?;
+						write!(fmt, "{sym:.>pad$}", pad = col + 1 - last)?;
 					}
 					last = col + 1;
 				}
-				if !fmt.alternate() && last <= max_col {
-					write!(fmt, "{:.<pad$}", "", pad = max_col + 1 - last)?;
+				if !fmt.alternate() && last < cols_width {
+					write!(fmt, "{:.<pad$}", "", pad = cols_width - last)?;
 				}
 			}
 			else {
 				if !fmt.alternate() {
-					write!(fmt, "{:.<pad$}", "", pad = max_col + 1)?;
+					write!(fmt, "{:.<pad$}", "", pad = cols_width)?;
 				}
 			}
 			writeln!(fmt)?;
+			row += I::ONE;
 		}
 		Ok(())
+	}
+}
+
+/// Renders the grid in Quadrant IV, normalizing to have the minimum point set
+/// at the origin.
+impl<I: Signed, T> fmt::Display for Cartesian2D<I, T> {
+	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+		let alt = fmt.alternate();
+		self.render(fmt, |_, _| if alt { '·' } else { '#' })
 	}
 }
 

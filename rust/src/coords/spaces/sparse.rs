@@ -269,7 +269,7 @@ impl<I: Signed, T> Cartesian2D<I, T> {
 			writeln!(
 				fmt,
 				"{:^w$}",
-				&format!("Translated from {}", min),
+				&format!("Translated from {min}"),
 				w = cols_width,
 			)?;
 		}
@@ -372,26 +372,7 @@ impl<I: Signed, T> Cartesian2D<I, T> {
 		let mut row = min.y;
 		while row <= max.y {
 			let r_abs = row.as_usize();
-			let h = r_abs / 256;
-			let m = r_abs / 16;
-			let l = r_abs % 16;
-			if max_row.as_usize() > 255 {
-				if r_abs % 256 == 0 {
-					write!(fmt, "{h:x}")?;
-				}
-				else {
-					fmt.write_str(" ")?;
-				}
-			}
-			if max_row.as_usize() > 15 {
-				if l == 0 {
-					write!(fmt, "{m:x}")?;
-				}
-				else {
-					fmt.write_str(" ")?;
-				}
-			}
-			write!(fmt, "{l:x}{}", drawings[1])?;
+			write!(fmt, "{r_abs: >w$x}{}", drawings[1], w = pfx_cols)?;
 
 			if let Some(vals) = self.rows.get(&row) {
 				let mut last = 0;

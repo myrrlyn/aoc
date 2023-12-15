@@ -69,7 +69,7 @@ impl Args {
 		drop(span);
 
 		let source_text = solver.load_input(match self.data {
-			Data::Sample => "sample",
+			Data::Sample => "samples",
 			Data::Input => "inputs",
 		})?;
 

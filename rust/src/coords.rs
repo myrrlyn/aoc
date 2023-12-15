@@ -9,7 +9,10 @@ pub use self::{
 		Cartesian3D as Cartesian3DPoint,
 	},
 	spaces::{
-		sparse::Cartesian3D as Cartesian3DSpace,
-		Cartesian2D as Cartesian2DSpace,
+		dense::Cartesian2D as Dense2DSpace,
+		sparse::{
+			Cartesian2D as Cartesian2DSpace,
+			Cartesian3D as Cartesian3DSpace,
+		},
 	},
 };

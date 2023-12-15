@@ -2,16 +2,9 @@ use std::{
 	collections::BTreeSet,
 	fmt,
 	mem,
-	time::{
-		Duration,
-		SystemTime,
-	},
 };
 
-use tap::{
-	Pipe,
-	Tap,
-};
+use tap::Pipe;
 use wyz::BidiIterator;
 
 use crate::{
@@ -56,7 +49,6 @@ impl Tilting {
 				self.table[next] = mem::take(&mut self.table[current]);
 			}
 		}
-		// tracing::debug!!("\n{self:#}");
 		Ok(())
 	}
 
@@ -66,7 +58,6 @@ impl Tilting {
 			.dimensions()
 			.ok_or_else(|| eyre::eyre!("cannot process an empty table"))?;
 		let max = max - min;
-		// tracing::debug!(%max);
 		self.table
 			.iter()
 			.filter(|&(_, &rock)| rock == Rock::Sphere)
@@ -84,9 +75,7 @@ impl<'a> Parsed<&'a str> for Tilting {
 				.map(|line| line.chars().map(Rock::from).collect())
 				.collect(),
 		)
-		.pipe(|table| {
-			Ok(("", Self { table }.tap(|t| tracing::debug!("\n{t:#}"))))
-		})
+		.pipe(|table| Ok(("", Self { table })))
 	}
 }
 
@@ -94,7 +83,6 @@ impl Puzzle for Tilting {
 	/// Tilt the table so that the rocks slide north as far as they'll go.
 	fn prepare_1(&mut self) -> eyre::Result<()> {
 		self.tilt(Direction2D::North)?;
-		tracing::debug!("\n{self:#}");
 		Ok(())
 	}
 
@@ -107,41 +95,47 @@ impl Puzzle for Tilting {
 		self.tilt(Direction2D::West)?;
 		self.tilt(Direction2D::South)?;
 		self.tilt(Direction2D::East)?;
-		tracing::debug!("cycle 1\n{self:#}");
-		// let mut cycles = BTreeSet::new();
-		let mut now = SystemTime::now();
-		let mut print = now + Duration::from_secs(1);
-		let mut prev = 0;
-		let mut old = self.clone();
-		for n in 1 .. CYCLES {
+		let mut observed_patterns = BTreeSet::new();
+		let mut cycle_found = false;
+		let mut step_count = 1;
+		while step_count < CYCLES {
 			self.tilt(Direction2D::North)?;
 			self.tilt(Direction2D::West)?;
 			self.tilt(Direction2D::South)?;
 			self.tilt(Direction2D::East)?;
-			if *self == old {
-				tracing::debug!(%n, "became circular\n{self:#}");
-				break;
+			step_count += 1;
+			// We need to be able to produce the pattern twice in the event of
+			// a cache-clear.
+			let pattern = || {
+				self.table
+					.iter()
+					.filter(|&(_, &r)| r == Rock::Sphere)
+					.map(|(p, _)| p)
+					.collect::<Vec<_>>()
+			};
+			// A cycle occurs when a pattern is observed a second time.
+			if !observed_patterns.insert(pattern()) {
+				tracing::debug!("found a repeated observation!");
+				// The first time a pattern repeats, we have *at least* a cycle,
+				// plus a potential introductory path that got us here. Discard
+				// all observed patterns, then insert the duplicate again.
+				if !cycle_found {
+					tracing::debug!(%step_count, "first such repetition; resetting tracker");
+					cycle_found = true;
+					observed_patterns.clear();
+					observed_patterns.insert(pattern());
+					continue;
+				}
+				// Now, we know that the observation has *only* cyclic patterns.
+				tracing::debug!(%step_count, cycle_len=%observed_patterns.len(), "second such repetition; fast-forwarding");
+				let jump = (CYCLES - step_count) / observed_patterns.len();
+				step_count += jump * observed_patterns.len();
+				tracing::debug!(%step_count, "fast-forwarded");
+				// Discard the observations; there are fewer steps remaining
+				// than the cycle length, so we know this branch will not enter
+				// a third time.
+				observed_patterns.clear();
 			}
-			old.clone_from(self);
-			now = SystemTime::now();
-			if now > print {
-				tracing::debug!(%n, cycles=%(n - prev), "spinning");
-				print = now + Duration::from_secs(1);
-				prev = n;
-			}
-			// if cycles.len() > 100 {
-			// 	cycles.clear();
-			// }
-			// if !cycles.insert(
-			// 	self.table
-			// 		.iter()
-			// 		.filter(|&(_, &r)| r == Rock::Sphere)
-			// 		.map(|(p, _)| p)
-			// 		.collect::<BTreeSet<_>>(),
-			// ) {
-			// 	tracing::debug!(%n, "became circular\n{self:#}");
-			// 	break;
-			// }
 		}
 		Ok(())
 	}

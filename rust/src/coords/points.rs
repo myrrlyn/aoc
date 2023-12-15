@@ -2,6 +2,7 @@ use std::{
 	fmt,
 	ops::{
 		self,
+		Neg,
 		RangeInclusive,
 	},
 };
@@ -36,7 +37,7 @@ impl<I: Signed> Cartesian2D<I> {
 		y: I::ZERO,
 	};
 
-	pub fn new(x: I, y: I) -> Self {
+	pub const fn new(x: I, y: I) -> Self {
 		Self { x, y }
 	}
 
@@ -253,5 +254,26 @@ impl<I: Signed> ops::SubAssign<Self> for Cartesian3D<I> {
 		self.x -= rhs.x;
 		self.y -= rhs.y;
 		self.z -= rhs.z;
+	}
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum Direction2D {
+	North,
+	South,
+	West,
+	East,
+}
+
+impl Direction2D {
+	pub fn unit<I: Signed>(self) -> Cartesian2D<I>
+	where I: Neg<Output = I> {
+		match self {
+			Self::North => Cartesian2D::new(I::ZERO, -I::ONE),
+			Self::South => Cartesian2D::new(I::ZERO, I::ONE),
+			Self::West => Cartesian2D::new(-I::ONE, I::ZERO),
+			Self::East => Cartesian2D::new(I::ONE, I::ZERO),
+		}
 	}
 }

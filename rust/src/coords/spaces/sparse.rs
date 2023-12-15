@@ -16,7 +16,6 @@ use std::{
 
 use funty::{
 	Fundamental,
-	Integral,
 	Signed,
 };
 use tap::Pipe;

@@ -1,0 +1,91 @@
+{
+	// Use IntelliSense to learn about possible attributes.
+	// Hover to view descriptions of existing attributes.
+	// For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"type": "lldb",
+			"request": "launch",
+			"name": "Debug unit tests in library 'wyz_aoc'",
+			"cargo": {
+				"args": [
+					"test",
+					"--no-run",
+					"--lib",
+					"--package=wyz_aoc"
+				],
+				"filter": {
+					"name": "wyz_aoc",
+					"kind": "lib"
+				}
+			},
+			"args": [],
+			"cwd": "${workspaceFolder}"
+		},
+		{
+			"type": "lldb",
+			"request": "launch",
+			"name": "Debug executable 'wyz_aoc'",
+			"cargo": {
+				"args": [
+					"build",
+					"--bin=wyz_aoc",
+					"--package=wyz_aoc"
+				],
+				"filter": {
+					"name": "wyz_aoc",
+					"kind": "bin"
+				}
+			},
+			"args": [
+				"${input:year}",
+				"${input:day}",
+				"--data",
+				"${input:source}"
+			],
+			"cwd": "${workspaceFolder}"
+		},
+		{
+			"type": "lldb",
+			"request": "launch",
+			"name": "Debug unit tests in executable 'wyz_aoc'",
+			"cargo": {
+				"args": [
+					"test",
+					"--no-run",
+					"--bin=wyz_aoc",
+					"--package=wyz_aoc"
+				],
+				"filter": {
+					"name": "wyz_aoc",
+					"kind": "bin"
+				}
+			},
+			"args": [],
+			"cwd": "${workspaceFolder}"
+		}
+	],
+	"inputs": [
+		{
+			"id": "year",
+			"description": "the AoC year",
+			"type": "promptString"
+		},
+		{
+			"id": "day",
+			"description": "the AoC day",
+			"type": "promptString"
+		},
+		{
+			"id": "source",
+			"description": "the source data file",
+			"type": "pickString",
+			"options": [
+				"sample",
+				"input"
+			],
+			"default": "sample"
+		}
+	]
+}

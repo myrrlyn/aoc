@@ -257,6 +257,7 @@ impl<I: Signed> ops::SubAssign<Self> for Cartesian3D<I> {
 	}
 }
 
+/// A direction in a 2-D plane.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Direction2D {
@@ -267,13 +268,32 @@ pub enum Direction2D {
 }
 
 impl Direction2D {
-	pub fn unit<I: Signed>(self) -> Cartesian2D<I>
-	where I: Neg<Output = I> {
+	/// Produces a point in the 2-D plane that is one unit away from origin in
+	/// the specified direction.
+	///
+	/// North and West are -1 on their respective axes; South and East are
+	/// positive.
+	pub fn unit<I: Signed + Neg<Output = I>>(self) -> Cartesian2D<I> {
 		match self {
 			Self::North => Cartesian2D::new(I::ZERO, -I::ONE),
 			Self::South => Cartesian2D::new(I::ZERO, I::ONE),
 			Self::West => Cartesian2D::new(-I::ONE, I::ZERO),
 			Self::East => Cartesian2D::new(I::ONE, I::ZERO),
 		}
+	}
+}
+
+impl fmt::Display for Direction2D {
+	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+		fmt.write_str(match (self, fmt.alternate()) {
+			(Self::North, false) => "N",
+			(Self::North, true) => "North",
+			(Self::South, false) => "S",
+			(Self::South, true) => "South",
+			(Self::West, false) => "W",
+			(Self::West, true) => "West",
+			(Self::East, false) => "E",
+			(Self::East, true) => "East",
+		})
 	}
 }

@@ -21,6 +21,7 @@ use nom::{
 use tap::Pipe;
 
 use crate::{
+	coords::spaces::DisplayGrid,
 	prelude::*,
 	Coord2D,
 	Grid2D,
@@ -224,13 +225,31 @@ impl<'a> Parsed<&'a str> for Pattern {
 	}
 }
 
+impl DisplayGrid<i8, Tile> for Pattern {
+	fn bounds_inclusive(&self) -> Option<(Coord2D<i8>, Coord2D<i8>)> {
+		self.grid.dimensions()
+	}
+
+	fn print_cell(
+		&self,
+		symbols: &crate::coords::spaces::Symbols,
+		row: i8,
+		col: i8,
+		_row_abs: usize,
+		_col_abs: usize,
+	) -> char {
+		match self.grid.get(Coord2D::new(col, row)) {
+			Some(Tile::Ash) => symbols.middle_dot,
+			Some(Tile::Rock) => symbols.full,
+			None => symbols.empty,
+		}
+	}
+}
+
 impl fmt::Display for Pattern {
 	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
 		writeln!(fmt)?;
-		self.grid.render(fmt, |_, pt| match pt {
-			Tile::Ash => '.',
-			Tile::Rock => '#',
-		})
+		DisplayGrid::render(self, fmt)
 	}
 }
 

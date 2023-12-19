@@ -30,6 +30,7 @@ use rayon::{
 use crate::{
 	coords::{
 		points::Direction2D,
+		spaces::DisplayGrid,
 		Cartesian2DPoint as Point2D,
 		Dense2DSpace,
 	},
@@ -104,7 +105,7 @@ impl Puzzle for LightGrid {
 	}
 
 	fn part_1(&mut self) -> eyre::Result<i64> {
-		tracing::info!("\n{self:#}");
+		tracing::info!("\n{:}", self.display());
 		Ok(self.count_illuminated())
 	}
 
@@ -166,28 +167,37 @@ impl Puzzle for LightGrid {
 	}
 
 	fn part_2(&mut self) -> eyre::Result<i64> {
-		tracing::info!("\n{self:#}");
+		tracing::info!("\n{:}", self.display());
 		Ok(self.count_illuminated())
 	}
 }
 
-impl fmt::Display for LightGrid {
-	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-		let alt = fmt.alternate();
-		let beams = [' ', '░', '▒', '▓', '█'];
-		// simple display: beam overdraws tile unconditionally
-		// complex display: non-void tiles overdraw beam
-		self.grid.render(fmt, |_, tile| match tile.beams.count() {
-			0 => tile.kind.symbol(),
-			n => {
-				if alt && tile.kind != TileKind::Void {
-					tile.kind.symbol()
-				}
-				else {
-					beams[n]
-				}
+impl DisplayGrid<i8, Tile> for LightGrid {
+	fn bounds_inclusive(&self) -> Option<(Point2D<i8>, Point2D<i8>)> {
+		self.grid.dimensions()
+	}
+
+	fn print_cell(
+		&self,
+		symbols: &crate::coords::spaces::Symbols,
+		row: i8,
+		col: i8,
+		_row_abs: usize,
+		_col_abs: usize,
+	) -> char {
+		match self.grid.get(Point2D::new(col, row)) {
+			None => symbols.empty,
+			Some(t) => match t.kind {
+				TileKind::Void => [
+					symbols.empty,
+					symbols.quarter_1,
+					symbols.quarter_2,
+					symbols.quarter_3,
+					symbols.full,
+				][t.beams.count()],
+				_ => t.kind.symbol(),
 			},
-		})
+		}
 	}
 }
 

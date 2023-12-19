@@ -8,16 +8,12 @@ use std::{
 	},
 	fmt::{
 		self,
-		Write as _,
 	},
 	iter::FusedIterator,
 	ops::RangeInclusive,
 };
 
-use funty::{
-	Fundamental,
-	Signed,
-};
+use funty::Signed;
 use tap::Pipe;
 
 use crate::coords::{
@@ -123,6 +119,11 @@ impl<I: Signed, T> Cartesian2D<I, T> {
 	/// Inserts a value into the graph at a given point.
 	pub fn insert(&mut self, point: Cartesian2DPoint<I>, value: T) {
 		self.get_or_insert_with(point, || value);
+	}
+
+	/// Removes a value from the graph at a given point.
+	pub fn remove(&mut self, point: Cartesian2DPoint<I>) -> Option<T> {
+		self.rows.get_mut(&point.y)?.remove(&point.x)
 	}
 
 	/// Applies a transform function to the value stored at the given point.
@@ -235,173 +236,6 @@ impl<I: Signed, T> Cartesian2D<I, T> {
 				.map(move |val| (Cartesian2DPoint::new(column, r), val))
 		})
 	}
-
-	/// Renders the space into a formatter. Callers can provide a hook which
-	/// yields a single character, allowing customization of the displayed
-	/// object.
-	pub fn render(
-		&self,
-		fmt: &mut fmt::Formatter,
-		mut per_cell: impl FnMut(Cartesian2DPoint<I>, &T) -> char,
-	) -> fmt::Result {
-		let Some((min, max)) = self.dimensions()
-		else {
-			return Ok(());
-		};
-		// The axis-drawing characters are:
-		// 0. horizontal bar
-		// 1. vertical bar
-		// 2. intersection
-		// 3. SW-to-NE diagonal fill
-		let drawings = if fmt.alternate() {
-			['─', '│', '┼', '▟']
-		}
-		else {
-			['-', '|', '+', '/']
-		};
-		let max_col = max.x - min.x;
-		let cols_width = max_col.as_usize() + 1;
-		let max_row = max.y - min.y;
-
-		// Display the origin-shift in expanded mode.
-		if fmt.alternate() && (min.x != I::ZERO || min.y != I::ZERO) {
-			writeln!(
-				fmt,
-				"{:^w$}",
-				&format!("Translated from {min}"),
-				w = cols_width,
-			)?;
-		}
-		// Render column markers, wrapping at 16^3.
-		// These accumulate, rather than write directly into the buffer, because
-		// the high lines prefer to over-draw rather than branch every loop, and
-		// we march through the columns only once rather than per line of text
-		// in the axis header.
-		let mut places = [String::new(), String::new(), String::new()];
-		for col in 0 ..= (max_col.as_usize()) {
-			let h = (col / 256) % 16;
-			let m = (col / 16) % 16;
-			let l = col % 16;
-			if col % 256 == 0 {
-				if fmt.alternate() {
-					write!(&mut places[0], "{h:─<256x}")?;
-				}
-				else {
-					write!(&mut places[0], "{h:-<256x}")?;
-				}
-			}
-			if l == 0 {
-				if fmt.alternate() {
-					write!(&mut places[1], "{m:─<16x}")?;
-				}
-				else {
-					write!(&mut places[1], "{m:-<16x}")?;
-				}
-			}
-			write!(&mut places[2], "{l:x}")?;
-		}
-		// Truncate each line.
-		for line in &mut places[.. 2] {
-			if let Some(snip) =
-				line.char_indices().nth(cols_width).map(|(idx, _)| idx)
-			{
-				line.truncate(snip);
-			}
-		}
-		let huge = max_row.as_usize() > 255;
-		let big = max_row.as_usize() > 15;
-		let pfx_cols = if huge {
-			3
-		}
-		else if big {
-			2
-		}
-		else {
-			1
-		};
-		if huge {
-			writeln!(
-				fmt,
-				"{: <pfx$}{sep}{line}",
-				"",
-				sep = drawings[1],
-				line = places[0],
-				pfx = pfx_cols,
-			)?;
-		}
-		if big {
-			writeln!(
-				fmt,
-				"{: <pfx$}{sep}{line}",
-				"",
-				sep = drawings[1],
-				line = places[1],
-				pfx = pfx_cols,
-			)?;
-		}
-		writeln!(
-			fmt,
-			"{: <pfx$}{sep}{line}",
-			drawings[3],
-			sep = drawings[1],
-			line = places[2],
-			pfx = pfx_cols,
-		)?;
-		if fmt.alternate() {
-			writeln!(
-				fmt,
-				"{:─<pfx$}┼{:─<cols$}",
-				"",
-				"",
-				pfx = pfx_cols,
-				cols = cols_width,
-			)?;
-		}
-		else {
-			writeln!(
-				fmt,
-				"{:-<pfx$}+{:-<cols$}",
-				"",
-				"",
-				pfx = pfx_cols,
-				cols = cols_width,
-			)?;
-		}
-
-		let mut row = min.y;
-		while row <= max.y {
-			let r_abs = row.as_usize();
-			write!(fmt, "{r_abs: >w$x}{}", drawings[1], w = pfx_cols)?;
-
-			if let Some(vals) = self.rows.get(&row) {
-				let mut last = 0;
-				for (&col, val) in vals.iter() {
-					// This could be a string.
-					let sym = per_cell(Cartesian2DPoint::new(col, row), val);
-					let col = (col.as_isize() - min.x.as_isize()).as_usize();
-					// The void character has to be hard-coded.
-					if fmt.alternate() {
-						write!(fmt, "{sym: >pad$}", pad = col + 1 - last)?;
-					}
-					else {
-						write!(fmt, "{sym:.>pad$}", pad = col + 1 - last)?;
-					}
-					last = col + 1;
-				}
-				if !fmt.alternate() && last < cols_width {
-					write!(fmt, "{:.<pad$}", "", pad = cols_width - last)?;
-				}
-			}
-			else {
-				if !fmt.alternate() {
-					write!(fmt, "{:.<pad$}", "", pad = cols_width)?;
-				}
-			}
-			writeln!(fmt)?;
-			row += I::ONE;
-		}
-		Ok(())
-	}
 }
 
 impl<I: Signed, T> Default for Cartesian2D<I, T> {
@@ -417,8 +251,7 @@ impl<I: Signed, T> Default for Cartesian2D<I, T> {
 /// at the origin.
 impl<I: Signed, T> fmt::Display for Cartesian2D<I, T> {
 	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-		let alt = fmt.alternate();
-		self.render(fmt, |_, _| if alt { '·' } else { '#' })
+		super::DisplayGrid::render(self, fmt)
 	}
 }
 
@@ -430,6 +263,30 @@ impl<I: Signed, T> FromIterator<(Cartesian2DPoint<I>, T)> for Cartesian2D<I, T> 
 			this.insert(coord, val);
 			this
 		})
+	}
+}
+
+impl<I: Signed, T> super::DisplayGrid<I, T> for Cartesian2D<I, T> {
+	fn bounds_inclusive(
+		&self,
+	) -> Option<(Cartesian2DPoint<I>, Cartesian2DPoint<I>)> {
+		self.dimensions()
+	}
+
+	fn print_cell(
+		&self,
+		symbols: &super::Symbols,
+		row: I,
+		col: I,
+		_row_abs: usize,
+		_col_abs: usize,
+	) -> char {
+		if self.contains(Cartesian2DPoint::new(col, row)) {
+			symbols.full
+		}
+		else {
+			symbols.empty
+		}
 	}
 }
 

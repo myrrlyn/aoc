@@ -8,11 +8,11 @@ switch to the sparse structure.
 */
 
 use std::{
-	fmt::{
+	fmt,
+	iter::{
 		self,
-		Write as _,
+		FusedIterator,
 	},
-	iter::FusedIterator,
 	ops::{
 		Index,
 		IndexMut,
@@ -20,15 +20,19 @@ use std::{
 };
 
 use funty::Signed;
+use tap::Tap;
 
-use crate::coords::Cartesian2DPoint as Point;
+use super::{
+	Point2D,
+	Sparse2D,
+};
 
 /// A 2-dimensional Cartesian grid where all cells within the bounds are filled
 /// with some value.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Cartesian2D<I: Signed, T> {
-	origin: Point<I>,
+	origin: Point2D<I>,
 	table:  Vec<Vec<T>>,
 }
 
@@ -37,7 +41,7 @@ impl<I: Signed, T> Cartesian2D<I, T> {
 		Self::default()
 	}
 
-	pub fn from_raw(origin: Point<I>, table: Vec<Vec<T>>) -> Self {
+	pub fn from_raw(origin: Point2D<I>, table: Vec<Vec<T>>) -> Self {
 		if let Some(len) = table.first().map(Vec::len) {
 			assert!(
 				table.iter().all(|v| v.len() == len),
@@ -59,16 +63,16 @@ impl<I: Signed, T> Cartesian2D<I, T> {
 		self.table.is_empty() || self.table.iter().all(|row| row.is_empty())
 	}
 
-	pub fn dimensions(&self) -> Option<(Point<I>, Point<I>)> {
+	pub fn dimensions(&self) -> Option<(Point2D<I>, Point2D<I>)> {
 		let rows = self.table.len().checked_sub(1)?;
 		let cols = self.table.first()?.len().checked_sub(1)?;
 		let min = self.origin;
 		let max =
-			Point::new(I::try_from(cols).ok()?, I::try_from(rows).ok()?) + min;
+			Point2D::new(I::try_from(cols).ok()?, I::try_from(rows).ok()?) + min;
 		Some((min, max))
 	}
 
-	pub fn in_bounds(&self, point: Point<I>) -> bool {
+	pub fn in_bounds(&self, point: Point2D<I>) -> bool {
 		if self.is_empty() {
 			return false;
 		};
@@ -77,11 +81,24 @@ impl<I: Signed, T> Cartesian2D<I, T> {
 			&& shifted.x.as_usize() < self.table[0].len()
 	}
 
+	/// Gets a single tile from the grid.
+	pub fn get(&self, point: Point2D<I>) -> Option<&T> {
+		let point = point - self.origin;
+		self.table.get(point.y.as_usize())?.get(point.x.as_usize())
+	}
+
+	/// Gets an entire row from the grid.
+	pub fn get_row(&self, row: I) -> Option<&[T]> {
+		let r_abs = row - self.origin.y;
+		self.table.get(r_abs.as_usize()).map(Vec::as_slice)
+	}
+
+	/// Iterates through each tile in the grid, in row-major order.
 	pub fn iter(
 		&self,
-	) -> impl Iterator<Item = (Point<I>, &T)> + DoubleEndedIterator + FusedIterator
-	where <I as TryFrom<usize>>::Error: fmt::Debug {
-		let Point { y, x } = self.origin;
+	) -> impl Iterator<Item = (Point2D<I>, &T)> + DoubleEndedIterator + FusedIterator
+	where <I as TryFrom<isize>>::Error: fmt::Debug {
+		let Point2D { y, x } = self.origin;
 		let ys = self.table.len();
 		let xs = self.table.first().map(|v| v.len()).unwrap_or_default();
 		self.table
@@ -90,16 +107,17 @@ impl<I: Signed, T> Cartesian2D<I, T> {
 			.map(move |(row, y)| {
 				row.iter()
 					.zip(Axis::new(x, xs))
-					.map(move |(val, x)| (Point::new(x, y), val))
+					.map(move |(val, x)| (Point2D::new(x, y), val))
 			})
 			.flatten()
 	}
 
+	/// Consumes the grid, yielding each tile in row-major order.
 	pub fn into_iter(
 		self,
-	) -> impl Iterator<Item = (Point<I>, T)> + DoubleEndedIterator + FusedIterator
-	where <I as TryFrom<usize>>::Error: fmt::Debug {
-		let Point { y, x } = self.origin;
+	) -> impl Iterator<Item = (Point2D<I>, T)> + DoubleEndedIterator + FusedIterator
+	where <I as TryFrom<isize>>::Error: fmt::Debug {
+		let Point2D { y, x } = self.origin;
 		let ys = self.table.len();
 		let xs = self.table.first().map(|v| v.len()).unwrap_or(0);
 		self.table
@@ -108,201 +126,112 @@ impl<I: Signed, T> Cartesian2D<I, T> {
 			.map(move |(row, y)| {
 				row.into_iter()
 					.zip(Axis::new(x, xs))
-					.map(move |(val, x)| (Point::new(x, y), val))
+					.map(move |(val, x)| (Point2D::new(x, y), val))
 			})
 			.flatten()
 	}
 }
 
-impl<I: Signed, T> Cartesian2D<I, T>
-where <I as TryFrom<usize>>::Error: fmt::Debug
-{
-	pub fn render(
-		&self,
-		fmt: &mut fmt::Formatter,
-		mut per_cell: impl FnMut(Point<I>, &T) -> char,
-	) -> fmt::Result {
-		if self.is_empty() {
-			return Ok(());
-		}
-		// The axis-drawing characters are:
-		// 0. horizontal bar
-		// 1. vertical bar
-		// 2. intersection
-		// 3. SW-to-NE diagonal fill
-		let drawings = if fmt.alternate() {
-			['─', '│', '┼', '▟']
-		}
+impl<I: Signed, T: Default> From<Sparse2D<I, T>> for Cartesian2D<I, T> {
+	fn from(sparse: Sparse2D<I, T>) -> Self {
+		let Some((origin, extent)) = sparse.dimensions()
 		else {
-			['-', '|', '+', '/']
+			return Self::new();
 		};
-		let cols_width = self.table[0].len();
-		let max_col = cols_width
-			.checked_sub(1)
-			.expect("cannot render a zero-column table");
-		let max_row = self
-			.table
-			.len()
-			.checked_sub(1)
-			.expect("cannot render a zero-row table");
-
-		if fmt.alternate()
-			&& (self.origin.x != I::ZERO || self.origin.y != I::ZERO)
-		{
-			writeln!(
-				fmt,
-				"{:^w$}",
-				&format!("Translated from {}", self.origin),
-				w = cols_width,
-			)?;
-		}
-		let mut places = [String::new(), String::new(), String::new()];
-		for col in 0 ..= max_col {
-			let h = (col / 256) % 16;
-			let m = (col / 16) % 16;
-			let l = col % 16;
-			if col % 256 == 0 {
-				if fmt.alternate() {
-					write!(&mut places[0], "{h:─<256x}")?;
-				}
-				else {
-					write!(&mut places[0], "{h:-<256x}")?;
-				}
+		let dim = extent - origin;
+		let table = iter::from_fn(|| {
+			Some(
+				iter::from_fn(|| Some(T::default()))
+					.take(dim.x.as_usize() + 1)
+					.collect::<Vec<_>>(),
+			)
+		})
+		.take(dim.y.as_usize() + 1)
+		.collect::<Vec<_>>();
+		Self { origin, table }.tap_mut(|this| {
+			for (point, value) in sparse.into_iter() {
+				this[point] = value;
 			}
-			if l == 0 {
-				if fmt.alternate() {
-					write!(&mut places[1], "{m:─<16x}")?;
-				}
-				else {
-					write!(&mut places[1], "{m:-<16x}")?;
-				}
-			}
-			write!(&mut places[2], "{l:x}")?;
-		}
-		// Truncate each line.
-		for line in &mut places[.. 2] {
-			if let Some(snip) =
-				line.char_indices().nth(cols_width).map(|(idx, _)| idx)
-			{
-				line.truncate(snip);
-			}
-		}
-		let huge = max_row > 255;
-		let big = max_row > 15;
-		let pfx_cols = if huge {
-			3
-		}
-		else if big {
-			2
-		}
-		else {
-			1
-		};
-		if huge {
-			writeln!(
-				fmt,
-				"{: <pfx$}{sep}{line}",
-				"",
-				sep = drawings[1],
-				line = places[0],
-				pfx = pfx_cols,
-			)?;
-		}
-		if big {
-			writeln!(
-				fmt,
-				"{: <pfx$}{sep}{line}",
-				"",
-				sep = drawings[1],
-				line = places[1],
-				pfx = pfx_cols,
-			)?;
-		}
-		writeln!(
-			fmt,
-			"{: <pfx$}{sep}{line}",
-			drawings[3],
-			sep = drawings[1],
-			line = places[2],
-			pfx = pfx_cols,
-		)?;
-		if fmt.alternate() {
-			writeln!(
-				fmt,
-				"{:─<pfx$}┼{:─<cols$}",
-				"",
-				"",
-				pfx = pfx_cols,
-				cols = cols_width,
-			)?;
-		}
-		else {
-			writeln!(
-				fmt,
-				"{:-<pfx$}+{:-<cols$}",
-				"",
-				"",
-				pfx = pfx_cols,
-				cols = cols_width,
-			)?;
-		}
-		for row in Axis::new(I::ZERO, max_row + 1) {
-			write!(fmt, "{row: >w$x}{}", drawings[1], w = pfx_cols)?;
-
-			for col in Axis::new(I::ZERO, max_col + 1) {
-				let sym = per_cell(
-					Point::new(col, row),
-					&self.table[row.as_usize()][col.as_usize()],
-				);
-				fmt.write_char(sym)?;
-			}
-			writeln!(fmt)?;
-		}
-		Ok(())
+		})
 	}
 }
 
 impl<I: Signed, T> Default for Cartesian2D<I, T> {
 	fn default() -> Self {
 		Self {
-			origin: Point::new(I::ZERO, I::ZERO),
+			origin: Point2D::new(I::ZERO, I::ZERO),
 			table:  vec![],
 		}
 	}
 }
 
-impl<I: Signed, T> Index<Point<I>> for Cartesian2D<I, T> {
+impl<I: Signed, T> Index<Point2D<I>> for Cartesian2D<I, T> {
 	type Output = T;
 
-	fn index(&self, index: Point<I>) -> &Self::Output {
+	fn index(&self, index: Point2D<I>) -> &Self::Output {
 		let shifted = index - self.origin;
 		// tracing::debug!(%shifted, "indexing");
 		&self.table[shifted.y.as_usize()][shifted.x.as_usize()]
 	}
 }
 
-impl<I: Signed, T> IndexMut<Point<I>> for Cartesian2D<I, T> {
-	fn index_mut(&mut self, index: Point<I>) -> &mut Self::Output {
+impl<I: Signed, T> IndexMut<Point2D<I>> for Cartesian2D<I, T> {
+	fn index_mut(&mut self, index: Point2D<I>) -> &mut Self::Output {
 		let shifted = index - self.origin;
 		// tracing::debug!(%shifted, "indexing");
 		&mut self.table[shifted.y.as_usize()][shifted.x.as_usize()]
 	}
 }
 
+impl<I: Signed, T: Default + PartialEq> super::DisplayGrid<I, T>
+	for Cartesian2D<I, T>
+{
+	fn bounds_inclusive(&self) -> Option<(Point2D<I>, Point2D<I>)> {
+		self.dimensions()
+	}
+
+	fn print_cell(
+		&self,
+		symbols: &super::Symbols,
+		_row: I,
+		_col: I,
+		row_abs: usize,
+		col_abs: usize,
+	) -> char {
+		if self.table[row_abs][col_abs] == T::default() {
+			symbols.empty
+		}
+		else {
+			symbols.full
+		}
+	}
+}
+
+/// Roughly equivalent to `Range<I>`.
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-struct Axis<I: Signed> {
+pub struct Axis<I: Signed> {
 	bgn: I,
 	end: I,
 }
 
+impl<I: Signed> Axis<I> {
+	pub fn new_inclusive(min: I, max: I) -> Self {
+		let (min, max) = (min.min(max), min.max(max));
+		Self {
+			bgn: min,
+			end: max + I::ONE,
+		}
+	}
+}
+
 impl<I: Signed> Axis<I>
-where <I as TryFrom<usize>>::Error: fmt::Debug
+where <I as TryFrom<isize>>::Error: fmt::Debug
 {
 	fn new(start: I, length: usize) -> Self {
 		Self {
 			bgn: start,
-			end: (start.as_usize() + length)
+			end: (start.as_isize() + length as isize)
 				.try_into()
 				.expect("out of bounds for axis unit"),
 		}

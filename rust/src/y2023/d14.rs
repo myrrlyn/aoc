@@ -1,6 +1,5 @@
 use std::{
 	collections::BTreeSet,
-	fmt,
 	mem,
 };
 
@@ -10,7 +9,10 @@ use wyz::BidiIterator;
 use crate::{
 	coords::{
 		points::Direction2D,
-		spaces::Dense2D,
+		spaces::{
+			Dense2D,
+			DisplayGrid,
+		},
 	},
 	prelude::*,
 	Coord2D,
@@ -145,13 +147,24 @@ impl Puzzle for Tilting {
 	}
 }
 
-impl fmt::Display for Tilting {
-	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-		self.table.render(fmt, |_, rock| match rock {
-			Rock::Sphere => 'O', // '○',
-			Rock::Cube => '#',   // '■',
-			Rock::Void => ' ',
-		})
+impl DisplayGrid<i16, Rock> for Tilting {
+	fn bounds_inclusive(&self) -> Option<(Coord2D<i16>, Coord2D<i16>)> {
+		self.table.dimensions()
+	}
+
+	fn print_cell(
+		&self,
+		symbols: &crate::coords::spaces::Symbols,
+		row: i16,
+		col: i16,
+		_row_abs: usize,
+		_col_abs: usize,
+	) -> char {
+		match self.table.get(Coord2D::new(col, row)) {
+			Some(Rock::Sphere) => 'O', // '○',
+			Some(Rock::Cube) => symbols.full,
+			Some(Rock::Void) | None => symbols.empty,
+		}
 	}
 }
 

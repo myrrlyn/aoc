@@ -53,7 +53,7 @@ pub struct Args {
 impl Args {
 	#[tracing::instrument(skip(self), fields(year=%self.year, day=%self.day))]
 	fn execute_program(&self) -> eyre::Result<()> {
-		let span = tracing::trace_span!("lookup");
+		let span = tracing::error_span!("lookup");
 		let span = span.enter();
 		// Look up the requested solver in the registry
 		let (year, day) = (self.year, self.day);
@@ -73,7 +73,7 @@ impl Args {
 			Data::Input => "inputs",
 		})?;
 
-		let span = tracing::trace_span!("solve");
+		let span = tracing::error_span!("solve");
 		let _span = span.enter();
 		tracing::trace!("parsing");
 		// This error map is necessary because nom's default error holds views
@@ -86,7 +86,7 @@ impl Args {
 		}
 
 		if self.step != Step::Two {
-			let span = tracing::trace_span!("", part = 1);
+			let span = tracing::error_span!("", part = 1);
 			let _span = span.enter();
 			tracing::info!("preparing");
 			solver.prepare_1().wrap_err_with(|| {
@@ -99,7 +99,7 @@ impl Args {
 				.tap(|answer| tracing::info!(?answer, "solved!"));
 		}
 		if self.step != Step::One {
-			let span = tracing::trace_span!("", part = 2);
+			let span = tracing::error_span!("", part = 2);
 			let _span = span.enter();
 			tracing::info!("preparing");
 			solver.prepare_2().wrap_err_with(|| {
@@ -208,8 +208,12 @@ fn main() -> eyre::Result<()> {
 		.try_init()
 		.wrap_err("failed to install a trace sink")?;
 
-	// Dispatch to the solvers!
-	args.execute_program()
+	// Dispatch to the solvers! *Off* the main thread, just in case I ever
+	// figure out how to do window drawings.
+	let handle = std::thread::spawn(move || args.execute_program());
+	handle
+		.join()
+		.map_err(|_| eyre::eyre!("solver thread panicked"))?
 }
 
 fn render_known_puzzles() -> String {

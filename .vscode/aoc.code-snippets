@@ -46,7 +46,7 @@
 		"prefix": "mktraits",
 		"body": [
 			"#[derive(Clone, ${1:Copy, }Debug, ${2:Default, }Eq, Hash, Ord, PartialEq, PartialOrd)]",
-			"#[cfg_attr(feature = \"serde\", derive(serde::Serialize, serde::Deserialize))]",
+			"#[cfg_attr(feature = \"serde\", derive(serde::Serialize, serde::Deserialize))]$0",
 		]
 	},
 	"Parse": {
@@ -55,6 +55,18 @@
 		"body": [
 			"impl<'a> Parsed<&'a str> for ${1:Name} {",
 			"\tfn parse_wyz(text: &'a str) -> ParseResult<&'a str, Self> {",
+			"\t\t${0:todo!()}",
+			"\t}",
+			"}",
+			""
+		]
+	},
+	"Show": {
+		"scope": "rust",
+		"prefix": "mkdisp",
+		"body": [
+			"impl fmt::Display for ${1:Name} {",
+			"\tfn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {",
 			"\t\t${0:todo!()}",
 			"\t}",
 			"}",

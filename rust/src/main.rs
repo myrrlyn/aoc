@@ -79,7 +79,8 @@ impl Args {
 		// This error map is necessary because nom's default error holds views
 		// into the source data, but the error is returned out of this function
 		// after the source text is destroyed.
-		let (rest, mut solver) = (solution)(source_text.as_str())
+		let (rest, mut solver) = solver
+			.parse(source_text.as_str())
 			.map_err(|err| eyre::eyre!("{err}"))?;
 		if !rest.trim().is_empty() {
 			tracing::warn!(?rest, "unparsed input remaining");

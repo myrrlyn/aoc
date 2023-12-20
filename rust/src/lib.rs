@@ -1,31 +1,4 @@
-/*! Advent of Code solution management.
-
-Daily solutions are placed in the module tree at `crate::y{year}::d{day}`, and
-must provide an implementation of the `Puzzle` trait. The execution harness
-finds puzzles by looking through a global registry. Modules can register a
-solver by using `#[linkme::distributed_slice(SOLVERS)]` to place their
-virtualized parser into the global collection.
-
-Because Rust distinguishes between function *items* and function *pointers*, and
-function names are typed as items, registration requires writing a do-nothing
-closure, like this:
-
-```rust,ignore
-#[linkme::distributed_slice(SOLVERS)]
-static THIS: Solver = Solver::new(year, day, |t| t.parse_dyn_puzzle::<Today>());
-```
-
-The execution harness interacts with solvers exclusively as `Box<dyn Puzzle>`
-virtual objects. The `Puzzle` trait has two pairs of methods: preparation and
-execution for both part 1 and part 2 of the day's challenge. The trait supplies
-default implementations of all four methods, so that once a type is registered,
-the harness can begin running immediately. By default, preparation does nothing,
-and execution fails saying that the puzzle has not been implemented.
-
-The harness guarantees that whenever a part's main execution runs, its
-preparation has already succeeded; however, Part 2 cannot assume that Part 1
-has *or has not* run its preparation or solver!
-!*/
+#![doc = include_str!("lib.md")]
 
 use std::{
 	collections::BTreeMap,
@@ -55,6 +28,7 @@ use nom::{
 use tap::Tap;
 
 pub mod coords;
+pub mod dictionary;
 pub mod y2015;
 pub mod y2016;
 pub mod y2017;
@@ -92,18 +66,25 @@ pub type ParseResult<I, T> = IResult<I, T>;
 pub type DynParser =
 	for<'a> fn(&'a str) -> ParseResult<&'a str, Box<dyn Puzzle>>;
 
+/// Represents an entry in the puzzle set.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Solver {
+	/// The year half of the puzzle's identifier.
 	pub year: u16,
+	/// The day half of the puzzle's identifier.
 	pub day:  u8,
+	/// The puzzle entry point. This function parses input text and produces an
+	/// engine capable of solving the puzzle.
 	pub func: DynParser,
 }
 
 impl Solver {
+	/// Creates a new solver object from its components.
 	pub const fn new(year: u16, day: u8, func: DynParser) -> Self {
 		Self { year, day, func }
 	}
 
+	/// Executes the solver
 	#[tracing::instrument(name = "solve", skip(self, group), fields(year=%self.year, day=%self.day))]
 	pub fn solve(
 		&self,
@@ -156,6 +137,15 @@ impl Solver {
 		file.extend(path.components());
 		fs::read_to_string(&file)
 			.wrap_err_with(|| eyre::eyre!("could not read {}", file.display()))
+	}
+
+	/// Parses the input into a solver engine.
+	#[tracing::instrument(name = "parse", skip(self))]
+	pub fn parse<'a>(
+		self,
+		text: &'a str,
+	) -> ParseResult<&'a str, Box<dyn Puzzle>> {
+		(self.func)(text)
 	}
 }
 

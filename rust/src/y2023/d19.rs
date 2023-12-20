@@ -12,10 +12,7 @@ use std::{
 		IndexMut,
 		Range,
 	},
-	sync::{
-		Arc,
-		RwLock,
-	},
+	sync::RwLock,
 };
 
 use nom::{
@@ -45,43 +42,43 @@ use nom::{
 };
 use tap::Pipe;
 
-use crate::prelude::*;
+use crate::{
+	dictionary::{
+		Dictionary,
+		Identifier,
+	},
+	prelude::*,
+};
 
 #[linkme::distributed_slice(SOLVERS)]
 static ITEM: Solver =
 	Solver::new(2023, 19, |t| t.parse_dyn_puzzle::<QualityControl>());
 
-#[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug)]
 pub struct QualityControl {
-	rules: BTreeMap<Ident, RuleSet>,
+	rules: BTreeMap<Identifier, RuleSet>,
 	items: Vec<Item>,
-	// TODO(myrrlyn): This is the second time this has come up this year. Time
-	// for a library.
-	names: BTreeMap<Label, Ident>,
-	cache: BTreeMap<Ident, Label>,
-	start: Ident,
+	names: Dictionary<str>,
+	start: Identifier,
 }
 
 impl<'a> Parsed<&'a str> for QualityControl {
 	fn parse_wyz(text: &'a str) -> ParseResult<&'a str, Self> {
-		let names = RwLock::new(BTreeMap::new());
-		let cache = RwLock::new(BTreeMap::new());
-		let (_, start) = cached_label("in", &names, &cache)?;
+		let names = RwLock::new(Dictionary::new());
+		let (_, start) = cached_label("in", &names)?;
 		let (rest, (rules, items)) = separated_pair(
 			many1(terminated(
-				|t| RuleSet::parse_with_cache(t, &names, &cache),
+				|t| RuleSet::parse_with_cache(t, &names),
 				newline,
 			)),
 			newline,
 			many1(terminated(Item::parse_wyz, newline)),
 		)(text)?;
 		let names = names.into_inner().expect("poisoned name-cache");
-		let cache = cache.into_inner().expect("poisoned name-lookup");
 		Ok((rest, Self {
 			rules: rules.into_iter().collect(),
 			items,
 			names,
-			cache,
 			start,
 		}))
 	}
@@ -106,7 +103,7 @@ impl QualityControl {
 		let mut rule_id = self.start;
 		loop {
 			let rule = self.get_ruleset(rule_id)?;
-			if let Some(name) = self.cache.get(&rule_id) {
+			if let Some(name) = self.names.lookup(rule_id) {
 				tracing::trace!(%name, "applying ruleset");
 			}
 			else {
@@ -161,9 +158,10 @@ impl QualityControl {
 			.pipe(Ok)
 	}
 
-	pub fn get_ruleset(&self, id: Ident) -> eyre::Result<&RuleSet> {
+	pub fn get_ruleset(&self, id: Identifier) -> eyre::Result<&RuleSet> {
 		self.rules.get(&id).ok_or_else(|| {
-			let name = self.cache.get(&id).map(|a| &**a).unwrap_or("<unnamed>");
+			let name = self.names.lookup(id);
+			let name = name.as_deref().unwrap_or("<unnamed>");
 			tracing::error!(%id, %name, "no such rule");
 			eyre::eyre!("cannot find rule with ID {id} (name {name})")
 		})
@@ -190,19 +188,18 @@ impl RuleSet {
 
 	pub fn parse_with_cache<'a>(
 		text: &'a str,
-		names: &RwLock<BTreeMap<Label, Ident>>,
-		cache: &RwLock<BTreeMap<Ident, Label>>,
-	) -> ParseResult<&'a str, (Ident, Self)> {
+		names: &RwLock<Dictionary<str>>,
+	) -> ParseResult<&'a str, (Identifier, Self)> {
 		let (rest, (name, (rules, default))) = pair(
-			|t| cached_label(t, names, cache),
+			|t| cached_label(t, names),
 			delimited(
 				tag("{"),
 				pair(
 					many1(terminated(
-						|t| Rule::parse_with_cache(t, names, cache),
+						|t| Rule::parse_with_cache(t, names),
 						tag(","),
 					)),
-					|t| Route::parse_with_cache(t, names, cache),
+					|t| Route::parse_with_cache(t, names),
 				),
 				tag("}"),
 			),
@@ -244,8 +241,7 @@ impl Rule {
 
 	pub fn parse_with_cache<'a>(
 		text: &'a str,
-		names: &RwLock<BTreeMap<Label, Ident>>,
-		cache: &RwLock<BTreeMap<Ident, Label>>,
+		names: &RwLock<Dictionary<str>>,
 	) -> ParseResult<&'a str, Self> {
 		map(
 			tuple((
@@ -256,7 +252,7 @@ impl Rule {
 					value(cmp::Ordering::Less, tag("<")),
 				)),
 				get_u16,
-				preceded(tag(":"), |t| Route::parse_with_cache(t, names, cache)),
+				preceded(tag(":"), |t| Route::parse_with_cache(t, names)),
 			)),
 			|(kind, filter, value, target)| Self {
 				attr: kind,
@@ -286,26 +282,24 @@ impl fmt::Display for Rule {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Route {
 	/// Terminates rule processing as a success.
 	Accept,
 	/// Terminates rule processing as a failure.
 	Reject,
 	/// Continues processing with a new rule-set.
-	Forward(Ident),
+	Forward(Identifier),
 }
 
 impl Route {
 	pub fn parse_with_cache<'a>(
 		text: &'a str,
-		names: &RwLock<BTreeMap<Label, Ident>>,
-		cache: &RwLock<BTreeMap<Ident, Label>>,
+		names: &RwLock<Dictionary<str>>,
 	) -> ParseResult<&'a str, Self> {
 		alt((
 			value(Self::Accept, tag("A")),
 			value(Self::Reject, tag("R")),
-			map(|t| cached_label(t, names, cache), Self::Forward),
+			map(|t| cached_label(t, names), Self::Forward),
 		))(text)
 	}
 }
@@ -322,7 +316,6 @@ impl fmt::Display for Route {
 
 /// Various attributes that an object can have.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Attr {
 	/// eXtremely cool-looking when seen
 	X,
@@ -357,7 +350,6 @@ impl fmt::Display for Attr {
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Item {
 	x: Number,
 	m: Number,
@@ -422,7 +414,6 @@ impl<'a> Parsed<&'a str> for Item {
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ItemSet {
 	x: Range<Number>,
 	m: Range<Number>,
@@ -495,33 +486,19 @@ impl IndexMut<Attr> for ItemSet {
 
 pub fn cached_label<'a>(
 	text: &'a str,
-	names: &RwLock<BTreeMap<Label, Ident>>,
-	cache: &RwLock<BTreeMap<Ident, Label>>,
-) -> ParseResult<&'a str, Ident> {
+	names: &RwLock<Dictionary<str>>,
+) -> ParseResult<&'a str, Identifier> {
 	let (rest, name) = alpha1(text)?;
-	let names_r = names.read().expect("poisoned name-cache");
-	let new_ident = names_r.len() as u16;
-	if let Some(&id) = names_r.get(name) {
-		return Ok((rest, id));
-	}
-	let name: Arc<str> = name.into();
-	drop(names_r);
-	names
-		.write()
+	if let Some(ident) = names
+		.read()
 		.expect("poisoned name-cache")
-		.insert(name.clone(), new_ident);
-	cache
-		.write()
-		.expect("poisoned name-lookup")
-		.insert(new_ident, name);
-	Ok((rest, new_ident))
+		.lookup_value(name)
+	{
+		return Ok((rest, ident));
+	}
+	let ident = names.write().expect("poisoned name-cache").insert(name);
+	Ok((rest, ident))
 }
-
-/// A cache-key for rule-set names.
-type Ident = u16;
 
 /// The numeric type that fits the attribute values.
 type Number = u16;
-
-/// The storage used for text lables.
-type Label = Arc<str>;

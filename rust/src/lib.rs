@@ -140,7 +140,7 @@ impl Solver {
 	}
 
 	/// Parses the input into a solver engine.
-	#[tracing::instrument(name = "parse", skip(self))]
+	#[tracing::instrument(name = "parse", skip(self, text))]
 	pub fn parse<'a>(
 		self,
 		text: &'a str,

@@ -51,7 +51,7 @@ pub struct Args {
 }
 
 impl Args {
-	#[tracing::instrument(skip(self), fields(year=%self.year, day=%self.day))]
+	#[tracing::instrument(name = "run", skip(self), fields(year=%self.year, day=%self.day))]
 	fn execute_program(&self) -> eyre::Result<()> {
 		let span = tracing::error_span!("lookup");
 		let span = span.enter();

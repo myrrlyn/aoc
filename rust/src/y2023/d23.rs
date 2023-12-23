@@ -149,7 +149,7 @@ impl<'a> Hiker<'a> {
 
 			// Reaching the goal updates the best score.
 			if self.current == self.topo.end {
-				if score.fetch_max(len, Ordering::Relaxed) == len {
+				if score.fetch_max(len, Ordering::Relaxed) < len {
 					tracing::debug!(score=%len, "new best\n{:#}", self.display());
 					for (cell, step) in self.path.iter().copied().zip(0 ..) {
 						self.topo.topo[cell].best.store(step, Ordering::Relaxed);

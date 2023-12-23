@@ -92,6 +92,24 @@ impl<I: Signed> Cartesian2D<I> {
 	}
 }
 
+impl<I: Signed + Neg<Output = I>> Cartesian2D<I> {
+	/// Computes the four immediate neighbors of this point.
+	///
+	/// They are returned in `[N, S, W, E]` order.
+	pub fn direct_neighbors(self) -> [Self; 4] {
+		[
+			self + Direction2D::North.unit(),
+			self + Direction2D::South.unit(),
+			self + Direction2D::West.unit(),
+			self + Direction2D::East.unit(),
+		]
+	}
+
+	pub fn abs_manhattan(self) -> I {
+		self.x.abs() + self.y.abs()
+	}
+}
+
 impl<I: Signed> Cartesian3D<I> {
 	pub const ZERO: Self = Self {
 		x: I::ZERO,

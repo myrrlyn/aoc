@@ -5,6 +5,7 @@ use std::{
 	},
 	fmt,
 	hash::Hash,
+	iter::FusedIterator,
 	ops::Index,
 	sync::Arc,
 };
@@ -82,6 +83,16 @@ impl<T: ?Sized + Eq + Hash> Dictionary<T> {
 	/// Tests if a key is stored in the dictionary.
 	pub fn contains_key(&self, ident: Identifier) -> bool {
 		self.idents.contains_key(&ident.ident)
+	}
+
+	pub fn identifiers<'a>(
+		&'a self,
+	) -> impl 'a
+	+ Iterator<Item = Identifier>
+	+ DoubleEndedIterator
+	+ ExactSizeIterator
+	+ FusedIterator {
+		self.idents.keys().map(|k| Identifier::new(*k))
 	}
 }
 

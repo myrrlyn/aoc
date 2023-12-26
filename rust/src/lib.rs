@@ -28,7 +28,8 @@ use nom::{
 use tap::Tap;
 
 pub mod coords;
-pub mod dictionary;
+pub mod dict;
+pub mod web;
 pub mod y2015;
 pub mod y2016;
 pub mod y2017;
@@ -177,6 +178,13 @@ pub fn solutions() -> &'static Registry {
 /// `(&str) -> Result<Box<dyn Puzzle>>` with the above collection in order for
 /// the execution harness to find and run it.
 pub trait Puzzle {
+	/// Additional processing after the text input has been parsed.
+	///
+	/// This is always called, no matter which stages are being run.
+	fn after_parse(&mut self) -> eyre::Result<()> {
+		Ok(())
+	}
+
 	/// Prepares a solver to execute part 1.
 	fn prepare_1(&mut self) -> eyre::Result<()> {
 		Ok(())

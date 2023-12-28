@@ -115,7 +115,7 @@ impl<T: ?Sized + Eq + Hash> Clone for Dictionary<T> {
 
 impl<T: ?Sized + Eq + Hash + fmt::Debug> fmt::Debug for Dictionary<T> {
 	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-		fmt.debug_list().entries(self.idents.values()).finish()
+		fmt.debug_map().entries(self.idents.iter()).finish()
 	}
 }
 

@@ -26,7 +26,7 @@ use nom::{
 };
 
 use crate::{
-	dictionary::{
+	dict::{
 		Dictionary,
 		Identifier,
 	},

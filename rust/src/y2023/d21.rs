@@ -1,10 +1,19 @@
-use std::{ops::Index, sync::atomic::Ordering};
+use std::{
+	ops::Index,
+	sync::atomic::Ordering,
+};
 
-use radium::{Atom, Radium};
+use radium::{
+	Atom,
+	Radium,
+};
 use rayon::Scope;
 
 use crate::{
-	coords::{spaces::DisplayGrid, Dense2DSpace},
+	coords::{
+		spaces::DisplayGrid,
+		Dense2DSpace,
+	},
 	prelude::*,
 	Coord2D,
 };
@@ -24,10 +33,10 @@ impl<'a> Parsed<&'a str> for Garden {
 		let mut origin = Coord2D::ZERO;
 		let grid = text
 			.lines()
-			.zip(0..)
+			.zip(0 ..)
 			.map(|(l, r)| {
 				l.chars()
-					.zip(0..)
+					.zip(0 ..)
 					.map(|(t, c)| {
 						let t = Tile::new(t.into());
 						if t.kind == Kind::Start {
@@ -51,7 +60,6 @@ impl Puzzle for Garden {
 			.iter()
 			.filter(|(pt, _)| (1 ..= STEP_COUNT).contains(&pt.abs_manhattan()))
 			.filter(|(_, tile)| tile.kind != Kind::Stone)
-			// .filter(|(pt, _)| 64 % pt.abs_manhattan() == 0)
 			.filter(|(pt, _)| pt.abs_manhattan() % 2 == STEP_COUNT % 2)
 		{
 			tile.visited.store(true, Ordering::Relaxed);
@@ -65,7 +73,7 @@ impl Puzzle for Garden {
 	}
 
 	fn part_2(&mut self) -> eyre::Result<i64> {
-		const STEP_COUNT: i32 = 26_501_365;
+		// const STEP_COUNT: i32 = 26_501_365;
 		todo!()
 	}
 }
@@ -74,7 +82,8 @@ impl Index<Coord2D<Ordinate>> for Garden {
 	type Output = Tile;
 
 	fn index(&self, mut coord: Coord2D<Ordinate>) -> &Self::Output {
-		let Some((min, max)) = self.grid.dimensions() else {
+		let Some((min, max)) = self.grid.dimensions()
+		else {
 			panic!("cannot index an empty grid");
 		};
 		if min == max {
@@ -111,7 +120,8 @@ impl DisplayGrid<Ordinate, Tile> for Garden {
 		let tile = &self.grid[pt];
 		if tile.visited.load(Ordering::Relaxed) {
 			symbols.middle_dot
-		} else {
+		}
+		else {
 			match tile.kind {
 				Kind::Empty => symbols.empty,
 				Kind::Stone => symbols.full,
@@ -123,9 +133,9 @@ impl DisplayGrid<Ordinate, Tile> for Garden {
 
 #[derive(Clone, Copy, Debug)]
 pub struct Walker<'a> {
-	plot: &'a Garden,
-	curr: Coord2D<Ordinate>,
-	dist: u8,
+	plot:   &'a Garden,
+	curr:   Coord2D<Ordinate>,
+	dist:   u8,
 	walked: u8,
 }
 
@@ -140,9 +150,7 @@ impl<'a> Walker<'a> {
 	}
 
 	pub fn search<'s>(mut self, scope: &Scope<'s>)
-	where
-		'a: 's,
-	{
+	where 'a: 's {
 		while self.dist != 0 {
 			if self.walked % 2 == 0 {
 				self.plot.grid[self.curr]
@@ -163,7 +171,8 @@ impl<'a> Walker<'a> {
 					this.walked += 1;
 					this
 				});
-			let Some(mine) = next.next() else {
+			let Some(mine) = next.next()
+			else {
 				break;
 			};
 			for step in next {
@@ -179,7 +188,7 @@ impl<'a> Walker<'a> {
 
 #[derive(Debug)]
 pub struct Tile {
-	kind: Kind,
+	kind:    Kind,
 	visited: Atom<bool>,
 }
 

@@ -43,7 +43,7 @@ use nom::{
 use tap::Pipe;
 
 use crate::{
-	dictionary::{
+	dict::{
 		Dictionary,
 		Identifier,
 	},

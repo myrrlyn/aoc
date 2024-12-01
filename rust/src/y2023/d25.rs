@@ -45,22 +45,43 @@ impl<'a> Parsed<&'a str> for Wiring {
 impl Puzzle for Wiring {
 	fn after_parse(&mut self) -> eyre::Result<()> {
 		tracing::debug!(ct=%self.web.nodes().count(), "finished parsing");
+		self.web.find_all_routes();
+		std::fs::write(
+			"assets/outputs/2023/d25/webbing.gv",
+			self.web.print_graphviz()?,
+		)?;
 		Ok(())
 	}
 
 	fn part_1(&mut self) -> eyre::Result<i64> {
-		self.web.find_all_routes();
-
-		let mut links = self.web.bidi_links().collect::<Vec<_>>();
-		links.sort_by_key(|l| cmp::Reverse(l.count()));
-		let (left, right) = links[0].ends();
-		for (one, two) in
-			links[.. 3].iter().map(|l| l.ends()).collect::<Vec<_>>()
-		{
+		let mut ends = None;
+		for _ in 0 .. 3 {
+			self.web.find_all_routes();
+			let mut links = self.web.bidi_links().collect::<Vec<_>>();
+			links.sort_by_key(|l| cmp::Reverse(l.count()));
+			// Because the routing algorithm biases towards lower-numbered
+			// nodes, it is possible that links become artificially loaded
+			// without actually being a critical path. This selects the
+			// highest-numbered link of the heaviest loadings, under the
+			// assumption that it is unlikely to be a false positive. It works
+			// correctly on the sample data.
+			let Some(heaviest) = links
+				.iter()
+				.filter(|l| l.count() == links[0].count())
+				.last()
+			else {
+				eyre::bail!("could not find a link to cut")
+			};
+			let (one, two) = heaviest.ends();
+			ends = Some((one, two));
 			self.web.remove_link(one, two);
+			self.web.clear_routes();
 		}
 
-		self.web.clear_routes();
+		let Some((left, right)) = ends
+		else {
+			eyre::bail!("did not find any links to cut");
+		};
 		let (mut ct_left, mut ct_right) = (0, 0);
 		rayon::scope(|s| {
 			s.spawn(|_| ct_left = self.web.count_reachable(left));
@@ -69,7 +90,7 @@ impl Puzzle for Wiring {
 		tracing::info!("DONE");
 		self.web.find_all_routes();
 		std::fs::write(
-			"assets/outputs/2023/d25/webbing.gv",
+			"assets/outputs/2023/d25/webbing-cut.gv",
 			self.web.print_graphviz()?,
 		)?;
 

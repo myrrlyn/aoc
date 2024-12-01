@@ -88,10 +88,10 @@ impl<T: ?Sized + Eq + Hash> Dictionary<T> {
 	pub fn identifiers<'a>(
 		&'a self,
 	) -> impl 'a
-	+ Iterator<Item = Identifier>
-	+ DoubleEndedIterator
-	+ ExactSizeIterator
-	+ FusedIterator {
+	       + Iterator<Item = Identifier>
+	       + DoubleEndedIterator
+	       + ExactSizeIterator
+	       + FusedIterator {
 		self.idents.keys().map(|k| Identifier::new(*k))
 	}
 }

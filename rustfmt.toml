@@ -5,7 +5,7 @@
 # use the nightly rustfmt. You will need to configure your editor to   #
 # format with `cargo +nightly fmt` rather than `cargo fmt`.            #
 #                                                                      #
-# See <https://rust-lang.github.io/rustfmt/?version=v1.7.0>            #
+# See <https://rust-lang.github.io/rustfmt/?version=v1.8.0>            #
 ########################################################################
 
 # Stable as of current nightly
@@ -62,7 +62,6 @@ format_macro_bodies = true
 format_strings = true
 group_imports = "StdExternalCrate"
 hex_literal_case = "Upper"
-hide_parse_errors = false
 ignore = []
 imports_indent = "Block"
 imports_granularity = "Crate"
@@ -74,7 +73,8 @@ normalize_comments = false
 normalize_doc_attributes = true
 overflow_delimited_expr = true
 reorder_impl_items = true
-required_version = "1.7.0"
+required_version = "1.8.0"
+show_parse_errors = true
 skip_children = false
 skip_macro_invocations = []
 space_after_colon = true
@@ -82,10 +82,10 @@ space_before_colon = false
 spaces_around_ranges = true
 struct_field_align_threshold = 8
 struct_lit_single_line = true
+style_edition = "2021"
 trailing_comma = "Vertical"
 trailing_semicolon = true
 type_punctuation_density = "Wide"
 unstable_features = true
-version = "Two"
 where_single_line = true
 wrap_comments = true

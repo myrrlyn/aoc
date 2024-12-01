@@ -1,5 +1,6 @@
 pub use funty::Signed;
 
+pub mod arithmetic;
 pub mod points;
 pub mod spaces;
 

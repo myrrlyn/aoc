@@ -51,6 +51,10 @@ impl<I: Signed, T> Cartesian2D<I, T> {
 		self.rows.is_empty() || self.rows.values().all(|row| row.is_empty())
 	}
 
+	pub fn len(&self) -> usize {
+		self.rows.values().map(BTreeMap::len).sum::<usize>()
+	}
+
 	/// If the space is not empty, returns a pair of points describing its
 	/// bounding box.
 	///
@@ -172,9 +176,9 @@ impl<I: Signed, T> Cartesian2D<I, T> {
 	pub fn iter(
 		&self,
 	) -> impl Iterator<Item = (Cartesian2DPoint<I>, &T)>
-	+ DoubleEndedIterator
-	+ FusedIterator
-	+ Clone {
+	       + DoubleEndedIterator
+	       + FusedIterator
+	       + Clone {
 		self.rows
 			.iter()
 			.map(|(&y, row)| {
@@ -189,8 +193,8 @@ impl<I: Signed, T> Cartesian2D<I, T> {
 	pub fn into_iter(
 		self,
 	) -> impl Iterator<Item = (Cartesian2DPoint<I>, T)>
-	+ DoubleEndedIterator
-	+ FusedIterator {
+	       + DoubleEndedIterator
+	       + FusedIterator {
 		self.rows
 			.into_iter()
 			.map(|(y, row)| {
@@ -206,9 +210,9 @@ impl<I: Signed, T> Cartesian2D<I, T> {
 		&'a self,
 		row: I,
 	) -> impl 'a
-	+ Iterator<Item = (Cartesian2DPoint<I>, &'a T)>
-	+ DoubleEndedIterator
-	+ FusedIterator {
+	       + Iterator<Item = (Cartesian2DPoint<I>, &'a T)>
+	       + DoubleEndedIterator
+	       + FusedIterator {
 		// Filtering rows *before* producing the column iterator results in less
 		// wasted work skipping over non-matching points.
 		self.rows
@@ -227,9 +231,9 @@ impl<I: Signed, T> Cartesian2D<I, T> {
 		&'a self,
 		column: I,
 	) -> impl 'a
-	+ Iterator<Item = (Cartesian2DPoint<I>, &'a T)>
-	+ DoubleEndedIterator
-	+ FusedIterator {
+	       + Iterator<Item = (Cartesian2DPoint<I>, &'a T)>
+	       + DoubleEndedIterator
+	       + FusedIterator {
 		// Each row has either zero or one entries in the column.
 		self.rows.iter().flat_map(move |(&r, row)| {
 			row.get(&column)
@@ -305,6 +309,10 @@ impl<I: Signed, T> Cartesian3D<I, T> {
 	/// Creates a new, blank, 3-D grid.
 	pub fn new() -> Self {
 		Self::default()
+	}
+
+	pub fn len(&self) -> usize {
+		self.planes.values().map(Cartesian2D::len).sum::<usize>()
 	}
 
 	/// Tests if the graph stores a value at a given point.
@@ -419,6 +427,16 @@ impl<I: Signed, T> Cartesian3D<I, T> {
 					.map(Cartesian3DPoint::from)
 			},
 		)
+	}
+
+	pub fn iter(
+		&self,
+	) -> impl Iterator<Item = (Cartesian3DPoint<I>, &T)>
+	       + DoubleEndedIterator
+	       + FusedIterator {
+		self.planes.iter().flat_map(|(&z, xy)| {
+			xy.iter().map(move |(pt, val)| (pt.make_3d(z), val))
+		})
 	}
 }
 

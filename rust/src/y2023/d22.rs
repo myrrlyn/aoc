@@ -1,14 +1,24 @@
-use std::{iter::FusedIterator, sync::Arc};
+use std::{
+	iter::FusedIterator,
+	sync::Arc,
+};
 
 use nom::{
 	bytes::complete::tag,
 	character::complete::i16 as get_i16,
 	combinator::map,
-	sequence::{separated_pair, tuple},
+	sequence::{
+		separated_pair,
+		tuple,
+	},
 };
 use tap::Tap;
 
-use crate::{prelude::*, Coord3D, Grid3D};
+use crate::{
+	prelude::*,
+	Coord3D,
+	Grid3D,
+};
 
 #[linkme::distributed_slice(SOLVERS)]
 static ITEM: Solver = Solver::new(2023, 22, |t| t.parse_dyn_puzzle::<Sandbox>());
@@ -23,7 +33,7 @@ pub struct Sandbox {
 impl<'a> Parsed<&'a str> for Sandbox {
 	fn parse_wyz(text: &'a str) -> ParseResult<&'a str, Self> {
 		let mut grid = Grid3D::new();
-		for (line, id) in text.lines().zip(1..) {
+		for (line, id) in text.lines().zip(1 ..) {
 			let (_, mut brick): (&str, Brick) = line.parse_wyz()?;
 			brick.id = id;
 			let arced = Arc::new(brick);
@@ -44,7 +54,7 @@ impl Puzzle for Sandbox {
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Brick {
-	id: usize,
+	id:  usize,
 	bgn: Coord3D<Ordinate>,
 	end: Coord3D<Ordinate>,
 }
@@ -56,14 +66,14 @@ impl Brick {
 	       + DoubleEndedIterator
 	       //    + ExactSizeIterator
 	       + FusedIterator {
-		(self.bgn.z..=self.end.z)
+		(self.bgn.z ..= self.end.z)
 			.tap(|r| {
 				if r.is_empty() {
 					tracing::warn!(%self.bgn.z, %self.end.z, "improper range");
 				}
 			})
 			.flat_map(move |z| {
-				(self.bgn.y..=self.end.y)
+				(self.bgn.y ..= self.end.y)
 					.tap(|r| {
 						if r.is_empty() {
 							tracing::warn!(%self.bgn.y, %self.end.y, "improper range");
@@ -72,7 +82,7 @@ impl Brick {
 					.map(move |y| (y, z))
 			})
 			.flat_map(move |(y, z)| {
-				(self.bgn.x..=self.end.x)
+				(self.bgn.x ..= self.end.x)
 					.tap(|r| {
 						if r.is_empty() {
 							tracing::warn!(%self.bgn.x, %self.end.x, "improper range");

@@ -235,10 +235,10 @@ impl Web {
 	pub fn nodes<'a>(
 		&'a self,
 	) -> impl 'a
-	+ Iterator<Item = Node<'a>>
-	+ DoubleEndedIterator
-	+ ExactSizeIterator
-	+ FusedIterator {
+	       + Iterator<Item = Node<'a>>
+	       + DoubleEndedIterator
+	       + ExactSizeIterator
+	       + FusedIterator {
 		self.nodes.iter().map(|(&name, ports)| Node {
 			web: self,
 			id: name,
@@ -455,10 +455,10 @@ impl<'a> Node<'a> {
 	pub fn neighbors<'n>(
 		&'n self,
 	) -> impl 'n
-	+ Iterator<Item = Identifier>
-	+ DoubleEndedIterator
-	+ ExactSizeIterator
-	+ FusedIterator {
+	       + Iterator<Item = Identifier>
+	       + DoubleEndedIterator
+	       + ExactSizeIterator
+	       + FusedIterator {
 		self.ports.keys().copied()
 	}
 

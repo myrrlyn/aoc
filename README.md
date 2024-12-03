@@ -8,14 +8,18 @@ This is where I store all my Advent of Code work.
 
 I am working on re-architecting to favor a single common library and a single
 execution harness, with a module per day that plugs into the executor and can be
-dynamically selected. As such, the filesystem needs to be organized by data
-type, not by calendar date.
+dynamically selected. I'd also like to be able to consider using more than one
+language as possible solvers, and to keep input files next to the
+implementations, so the filesystem is laid out as:
 
-- `assets/samples/{year}/d{day}.txt`: The publicly-available primer data.
-- `assets/inputs/{year}/d{day}.txt`: The private real data. These are never
-  committed.
-- `{lang}/y{year}/d{day}.{ext}`: Solutions for a given day in a given language.
-- `{lang}/*.{ext}`: The primary infrastructure for running puzzle solvers.
+- `src/`: most languages either implicitly, or can be told to, read this as the
+  compilation root
+
+  - `y{year}/`: parent module for all the puzzles in a given year
+    - `d{day}/`: child module for any implementations of that day
+      - `input.txt`: real puzzle data, not committed
+      - `sample.txt`: sample puzzle data, committed for test usage
+      - solution file(s)
 
 ## Rust
 
@@ -38,11 +42,11 @@ grindingly slow without that.
 - `years/`: Each year gets a folder in here
   - `<a year>/`
     - `d{01..25}/`: Every day gets its own folder
-      - `<a language>/`: Each language used to solve the day gets *its* own
+      - `<a language>/`: Each language used to solve the day gets _its_ own
         folder.
       - `input.txt`: Puzzle input, mandatory
       - `sample.txt`: Sample input, optional
-- `<a language>/`: Each language used to solve *any* puzzle gets its own
+- `<a language>/`: Each language used to solve _any_ puzzle gets its own
   top-level folder used as a common library across the entire project. This is
   supposed to enable code re-use between puzzles.
 

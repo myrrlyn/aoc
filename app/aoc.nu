@@ -7,10 +7,10 @@ def "fetch inputs" [year?: int, day?: int] {
 	let year = if $year == null { $cal | get year } else { $year }
 	let day = if $day == null { $cal | get day } else { $day }
 	let day_str = $day | fill --alignment right --width 2 --character '0'
-	mkdir $"assets/inputs/($year)"
+	mkdir $"src/y($year)/d($day_str)"
 	# print $"assets/inputs/($year)/d($day_str).txt"
-	print $"Fetching ($year)/($day)"
-	http get -H {Cookie: $"session=($session_key)"} $"https://adventofcode.com/($year)/day/($day)/input" | save -f $"assets/inputs/($year)/d($day_str).txt"
+	print $"Fetching ($year)/($day_str)"
+	http get -H {Cookie: $"session=($session_key)"} $"https://adventofcode.com/($year)/day/($day)/input" | save -f $"src/y($year)/d($day_str)/input.txt"
 	sleep 1sec
 }
 

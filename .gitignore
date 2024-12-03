@@ -5,3 +5,4 @@ Cargo.lock
 input.txt
 assets/inputs
 assets/outputs
+out/

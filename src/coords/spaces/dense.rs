@@ -87,6 +87,14 @@ impl<I: Signed, T> Cartesian2D<I, T> {
 		self.table.get(point.y.as_usize())?.get(point.x.as_usize())
 	}
 
+	/// Mutably views a single tile in the grid.
+	pub fn get_mut(&mut self, point: Point2D<I>) -> Option<&mut T> {
+		let point = point - self.origin;
+		self.table
+			.get_mut(point.y.as_usize())?
+			.get_mut(point.x.as_usize())
+	}
+
 	/// Gets an entire row from the grid.
 	pub fn get_row(&self, row: I) -> Option<&[T]> {
 		let r_abs = row - self.origin.y;
@@ -106,6 +114,27 @@ impl<I: Signed, T> Cartesian2D<I, T> {
 			.zip(Axis::new(y, ys))
 			.map(move |(row, y)| {
 				row.iter()
+					.zip(Axis::new(x, xs))
+					.map(move |(val, x)| (Point2D::new(x, y), val))
+			})
+			.flatten()
+	}
+
+	/// Iterates through each tile in the grid, in row-major order.
+	pub fn iter_mut(
+		&mut self,
+	) -> impl Iterator<Item = (Point2D<I>, &mut T)>
+	       + DoubleEndedIterator
+	       + FusedIterator
+	where <I as TryFrom<isize>>::Error: fmt::Debug {
+		let Point2D { y, x } = self.origin;
+		let ys = self.table.len();
+		let xs = self.table.first().map(|v| v.len()).unwrap_or_default();
+		self.table
+			.iter_mut()
+			.zip(Axis::new(y, ys))
+			.map(move |(row, y)| {
+				row.iter_mut()
 					.zip(Axis::new(x, xs))
 					.map(move |(val, x)| (Point2D::new(x, y), val))
 			})

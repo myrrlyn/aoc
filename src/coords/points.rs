@@ -299,6 +299,21 @@ impl Direction2D {
 			Self::East => Cartesian2D::new(I::ONE, I::ZERO),
 		}
 	}
+
+	/// Yields each direction in the group.
+	pub const fn all() -> [Self; 4] {
+		[Self::North, Self::East, Self::South, Self::West]
+	}
+
+	/// Turns the direction one step clockwise.
+	pub fn turn_right(self) -> Self {
+		match self {
+			Self::North => Self::East,
+			Self::East => Self::South,
+			Self::South => Self::West,
+			Self::West => Self::North,
+		}
+	}
 }
 
 impl fmt::Display for Direction2D {

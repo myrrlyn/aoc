@@ -12,6 +12,7 @@ serde = ["dep:serde", "dep:serde_json"]
 
 [dependencies]
 anyhow = "1"
+bitflags = "2.6.0"
 cfg-if = "1"
 color-eyre = "0.6"
 eyre = "0.6"

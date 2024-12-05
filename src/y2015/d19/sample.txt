@@ -1,4 +1,4 @@
-H => HO
-H => OH
-O => HH
-HOH
+ => HO
+ => OH
+ => HH
+OH

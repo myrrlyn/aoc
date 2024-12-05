@@ -1,2 +1,2 @@
-Time:      7  15   30
-Distance:  9  40  200
+ime:      7  15   30
+istance:  9  40  200

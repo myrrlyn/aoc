@@ -1,10 +1,10 @@
-LR
+R
 
-11A = (11B, XXX)
-11B = (XXX, 11Z)
-11Z = (11B, XXX)
-22A = (22B, XXX)
-22B = (22C, 22C)
-22C = (22Z, 22Z)
-22Z = (22B, 22B)
-XXX = (XXX, XXX)
+1A = (11B, XXX)
+1B = (XXX, 11Z)
+1Z = (11B, XXX)
+2A = (22B, XXX)
+2B = (22C, 22C)
+2C = (22Z, 22Z)
+2Z = (22B, 22B)
+XX = (XXX, XXX)

@@ -1,33 +1,33 @@
-seeds: 79 14 55 13
+eeds: 79 14 55 13
 
-seed-to-soil map:
-50 98 2
-52 50 48
+eed-to-soil map:
+0 98 2
+2 50 48
 
-soil-to-fertilizer map:
-0 15 37
-37 52 2
-39 0 15
+oil-to-fertilizer map:
+ 15 37
+7 52 2
+9 0 15
 
-fertilizer-to-water map:
-49 53 8
-0 11 42
-42 0 7
-57 7 4
+ertilizer-to-water map:
+9 53 8
+ 11 42
+2 0 7
+7 7 4
 
-water-to-light map:
-88 18 7
-18 25 70
+ater-to-light map:
+8 18 7
+8 25 70
 
-light-to-temperature map:
-45 77 23
-81 45 19
-68 64 13
+ight-to-temperature map:
+5 77 23
+1 45 19
+8 64 13
 
-temperature-to-humidity map:
-0 69 1
-1 0 69
+emperature-to-humidity map:
+ 69 1
+ 0 69
 
-humidity-to-location map:
-60 56 37
-56 93 4
+umidity-to-location map:
+0 56 37
+6 93 4

@@ -21,6 +21,7 @@ use std::{
 };
 
 use rayon::prelude::*;
+use tap::Pipe as _;
 
 use crate::dict::{
 	Dictionary,
@@ -195,11 +196,7 @@ impl Web {
 				break 'crawler;
 			}
 		}
-		let Some(path) = path
-		else {
-			return None;
-		};
-		Some(path.into_iter().collect())
+		path?.into_iter().collect::<Vec<_>>().pipe(Some)
 	}
 
 	/// Removes all cached routing information, without clearing

@@ -85,6 +85,7 @@ impl Args {
 		if !rest.trim().is_empty() {
 			tracing::warn!(?rest, "unparsed input remaining");
 		}
+		tracing::trace!("processing");
 		solver.after_parse().wrap_err(
 			"input was successfully parsed, but was not valid for the rules of \
 			 the puzzle",

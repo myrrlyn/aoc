@@ -1,5 +1,9 @@
-use std::cmp;
+use std::{
+	cmp,
+	path::PathBuf,
+};
 
+use eyre::Context;
 use nom::{
 	bytes::complete::tag,
 	character::complete::{
@@ -46,10 +50,16 @@ impl Puzzle for Wiring {
 	fn after_parse(&mut self) -> eyre::Result<()> {
 		tracing::debug!(ct=%self.web.nodes().count(), "finished parsing");
 		self.web.find_all_routes();
+		let mut path = PathBuf::from(file!());
+		path.pop();
+		path.push("webbing.gv");
 		std::fs::write(
-			"assets/outputs/2023/d25/webbing.gv",
-			self.web.print_graphviz()?,
-		)?;
+			&path,
+			self.web
+				.print_graphviz()
+				.context("could not produce graphviz output")?,
+		)
+		.with_context(|| format!("could not create {}", path.display()))?;
 		Ok(())
 	}
 
@@ -89,10 +99,10 @@ impl Puzzle for Wiring {
 		});
 		tracing::info!("DONE");
 		self.web.find_all_routes();
-		std::fs::write(
-			"assets/outputs/2023/d25/webbing-cut.gv",
-			self.web.print_graphviz()?,
-		)?;
+		let mut path = PathBuf::from(file!());
+		path.pop();
+		path.push("webbing-cut.gv");
+		std::fs::write(&path, self.web.print_graphviz()?)?;
 
 		Ok((ct_left * ct_right) as i64)
 	}

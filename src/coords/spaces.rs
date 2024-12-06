@@ -27,10 +27,14 @@ pub struct Symbols {
 	pub horiz:      char,
 	/// A solid vertical line.
 	pub vert:       char,
-	/// A intersection between horizontal and vertical lines.
+	/// An intersection between horizontal and vertical lines.
+	pub plus:       char,
+	/// An intersection between two diagonal lines.
 	pub cross:      char,
 	/// A diagonal line from lower-left to upper-right.
 	pub swne:       char,
+	/// A diagonal line from upper-left to lower-right.
+	pub nwse:       char,
 	/// A dot in the center of a tile.
 	pub middle_dot: char,
 	/// A broken horizontal line.
@@ -54,8 +58,10 @@ impl Symbols {
 	pub const ASCII: Self = Self {
 		horiz:      '-',
 		vert:       '|',
-		cross:      '+',
+		plus:       '+',
+		cross:      'X',
 		swne:       '/',
+		nwse:       '\\',
 		middle_dot: '.',
 		horiz_dots: '-',
 		vert_dots:  '|',
@@ -70,8 +76,10 @@ impl Symbols {
 	pub const FANCY: Self = Self {
 		horiz:      '─',
 		vert:       '│',
-		cross:      '┼',
+		plus:       '┼',
+		cross:      '╳',
 		swne:       '╱',
+		nwse:       '╲',
 		middle_dot: '·',
 		horiz_dots: '╌',
 		vert_dots:  '╎',
@@ -161,7 +169,7 @@ pub trait DisplayGrid<I: Signed, T> {
 		for _ in 0 .. num_hex_digits {
 			fmt.write_char(symbols.horiz)?;
 		}
-		fmt.write_char(symbols.cross)?;
+		fmt.write_char(symbols.plus)?;
 		for _ in 0 ..= col_max_abs {
 			fmt.write_char(symbols.horiz)?;
 		}

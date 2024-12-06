@@ -41,6 +41,10 @@ impl<I: Signed, T> Cartesian2D<I, T> {
 		Self::default()
 	}
 
+	pub fn set_origin(&mut self, origin: Point2D<I>) {
+		self.origin = origin;
+	}
+
 	pub fn from_raw(origin: Point2D<I>, table: Vec<Vec<T>>) -> Self {
 		if let Some(len) = table.first().map(Vec::len) {
 			assert!(

@@ -1,12 +1,22 @@
 use std::{
-	fmt,
+	fmt::{
+		self,
+		Write as _,
+	},
+	iter::FusedIterator,
 	ops::{
 		self,
+		BitOr,
+		BitOrAssign,
 		Neg,
 		RangeInclusive,
 	},
 };
 
+use bitvec::{
+	array::BitArray,
+	BitArr,
+};
 use funty::Signed;
 use tap::Tap;
 
@@ -328,5 +338,70 @@ impl fmt::Display for Direction2D {
 			(Self::East, false) => "E",
 			(Self::East, true) => "East",
 		})
+	}
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct DirectionSet2D {
+	inner: BitArr![for 4, in u8],
+}
+
+impl DirectionSet2D {
+	pub fn new() -> Self {
+		Self {
+			inner: BitArray::ZERO,
+		}
+	}
+
+	pub fn insert(&mut self, direction: Direction2D) {
+		self.inner.set(
+			match direction {
+				Direction2D::North => 0,
+				Direction2D::South => 1,
+				Direction2D::West => 2,
+				Direction2D::East => 3,
+			},
+			true,
+		);
+	}
+
+	pub fn contains(&self, direction: Direction2D) -> bool {
+		self.inner[match direction {
+			Direction2D::North => 0,
+			Direction2D::South => 1,
+			Direction2D::West => 2,
+			Direction2D::East => 3,
+		}]
+	}
+
+	pub fn contents<'a>(
+		&'a self,
+	) -> impl 'a + Iterator<Item = Direction2D> + FusedIterator + DoubleEndedIterator
+	{
+		Direction2D::all().into_iter().filter(|&d| self.contains(d))
+	}
+}
+
+impl fmt::Display for DirectionSet2D {
+	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+		for (dir, sym) in Direction2D::all().into_iter().zip("NSWE".chars()) {
+			fmt.write_char(if self.contains(dir) { sym } else { ' ' })?;
+		}
+		Ok(())
+	}
+}
+
+impl BitOr<Direction2D> for DirectionSet2D {
+	type Output = Self;
+
+	fn bitor(mut self, rhs: Direction2D) -> Self::Output {
+		self |= rhs;
+		self
+	}
+}
+
+impl BitOrAssign<Direction2D> for DirectionSet2D {
+	fn bitor_assign(&mut self, rhs: Direction2D) {
+		self.insert(rhs);
 	}
 }

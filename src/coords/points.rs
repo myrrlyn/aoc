@@ -235,6 +235,22 @@ impl<I: Signed> ops::AddAssign<Self> for Cartesian2D<I> {
 	}
 }
 
+impl<I: Signed> ops::Mul<I> for Cartesian2D<I> {
+	type Output = Self;
+
+	fn mul(mut self, rhs: I) -> Self {
+		self *= rhs;
+		self
+	}
+}
+
+impl<I: Signed> ops::MulAssign<I> for Cartesian2D<I> {
+	fn mul_assign(&mut self, rhs: I) {
+		self.x *= rhs;
+		self.y *= rhs;
+	}
+}
+
 impl<I: Signed> ops::Sub<Self> for Cartesian2D<I> {
 	type Output = Self;
 

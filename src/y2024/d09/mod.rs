@@ -97,7 +97,7 @@ impl TrashFs {
 	}
 
 	pub fn defrag(&mut self) -> eyre::Result<()> {
-		let mut span = self.diskvec.as_mut_slice();
+		let span = self.diskvec.as_mut_slice();
 		let mut back_cursor = span.len();
 		// Each file, in reverse order, attempts to move to the first empty span
 		// that can take it.
@@ -105,10 +105,18 @@ impl TrashFs {
 			.conv::<FsWalker>()
 			.rfind(|s| !s.kind.is_empty())
 		{
-			tracing::debug!(?file.kind, "defragging");
+			if let Some(dest) = span[.. back_cursor - file.span]
+				.conv::<FsWalker>()
+				.find(|s| s.kind.is_empty() && s.span >= file.span)
+			{
+				let file_range = file.from .. (file.from + file.span);
+				span.copy_within(file_range.clone(), dest.from);
+				span[file_range].fill(Block::Empty);
+			}
+			// If the file doesn't move, it will never move again; continue to
+			// the next one leftwards.
 			back_cursor = file.from;
 		}
-		tracing::debug!(%self, "after defrag");
 		Ok(())
 	}
 
@@ -142,7 +150,6 @@ impl<'a> Parsed<&'a str> for TrashFs {
 				map_parser(take(1usize), parse_number::<u8>),
 				map_parser(take(1usize), parse_number::<u8>),
 			)(src)?;
-			tracing::trace!(%file, %free, "pair");
 			let (file, free) = (file as usize, free as usize);
 			// diskmap.insert(cursor, (Block::FilePart { id }, file));
 			// cursor += file;
@@ -160,7 +167,6 @@ impl<'a> Parsed<&'a str> for TrashFs {
 		let (rest, file) =
 			opt(map_parser(take(1usize), parse_number::<u8>))(src)?;
 		if let Some(file) = file {
-			tracing::trace!(%file, "singlet");
 			// diskmap.insert(cursor, (Block::FilePart { id }, file as usize));
 			for _ in 0 .. file {
 				diskvec.push(Block::FilePart { id });
@@ -224,20 +230,15 @@ impl HeapSizeOf for Block {
 }
 
 struct FsWalker<'a> {
-	data:  &'a [Block],
-	/// The first block in a run.
-	front: usize,
-	/// One past the last block in a run.
-	back:  usize,
+	data:       &'a [Block],
+	from_start: usize,
 }
 
 impl<'a> From<&'a [Block]> for FsWalker<'a> {
 	fn from(data: &'a [Block]) -> Self {
-		let back = data.len();
 		Self {
 			data,
-			front: 0,
-			back,
+			from_start: 0,
 		}
 	}
 }
@@ -246,44 +247,41 @@ impl Iterator for FsWalker<'_> {
 	type Item = Sector;
 
 	fn next(&mut self) -> Option<Self::Item> {
-		if self.front >= self.back {
+		if self.data.is_empty() {
 			return None;
 		}
-		let kind = self.data[self.front];
-		let from = self.front;
-		self.front = self
+		let kind = self.data[0];
+		let from = self.from_start;
+		let span = self
 			.data
 			.iter()
 			.position(|b| *b != kind)
-			.unwrap_or(self.back);
-		let span = self.front - from;
+			.unwrap_or_else(|| self.data.len());
+		self.from_start += span;
+		self.data = &self.data[span ..];
 		Some(Sector { kind, from, span })
 	}
 }
 
 impl DoubleEndedIterator for FsWalker<'_> {
 	fn next_back(&mut self) -> Option<Self::Item> {
-		let span = tracing::debug_span!("TrashFs::next_back");
-		let _span = span.enter();
-		if self.front >= self.back {
+		if self.data.is_empty() {
 			return None;
 		}
-		let kind = self.data[self.back - 1];
-		let end = self.back;
-		self.back = self
+		let kind = self.data[self.data.len() - 1];
+		let from = self
 			.data
 			.iter()
 			.rposition(|b| *b != kind)
-			.unwrap_or(self.front);
-		let from = if self.front == self.back {
-			self.back
-		}
-		else {
-			self.back + 1
-		};
-		tracing::debug!("sub?");
-		let span = end - self.back;
-		Some(Sector { kind, from, span })
+			.map(|p| p + 1)
+			.unwrap_or_default();
+		let span = self.data.len() - from;
+		self.data = &self.data[.. from];
+		Some(Sector {
+			kind,
+			from: from + self.from_start,
+			span,
+		})
 	}
 }
 

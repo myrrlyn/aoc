@@ -75,7 +75,7 @@ impl Args {
 
 		let span = tracing::error_span!("solve");
 		let _span = span.enter();
-		tracing::trace!("parsing");
+		tracing::info!("parsing");
 		// This error map is necessary because nom's default error holds views
 		// into the source data, but the error is returned out of this function
 		// after the source text is destroyed.
@@ -85,7 +85,7 @@ impl Args {
 		if !rest.trim().is_empty() {
 			tracing::warn!(?rest, "unparsed input remaining");
 		}
-		tracing::trace!("processing");
+		tracing::info!("processing");
 		solver.after_parse().wrap_err(
 			"input was successfully parsed, but was not valid for the rules of \
 			 the puzzle",
